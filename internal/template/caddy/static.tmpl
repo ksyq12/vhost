@@ -1,0 +1,15 @@
+{{ if not .SSL }}http://{{ end }}{{ .Domain }}{{ range .Aliases }}, {{ if not .SSL }}http://{{ end }}{{ . }}{{ end }} {
+    root * {{ .Root }}
+    file_server
+
+    # Security headers
+    header {
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/{{ .Domain }}-access.log
+    }
+}

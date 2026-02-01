@@ -1,0 +1,42 @@
+{{ if not .SSL }}http://{{ end }}{{ .Domain }}{{ range .Aliases }}, {{ if not .SSL }}http://{{ end }}{{ . }}{{ end }} {
+    root * {{ .Root }}
+
+    # PHP-FPM Configuration
+    php_fastcgi unix:/run/php/php{{ .PHPVersion }}-fpm.sock
+
+    # WordPress Permalinks
+    try_files {path} {path}/ /index.php?{query}
+
+    # Enable file server for static files
+    file_server
+
+    # Security headers
+    header {
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+    }
+
+    # Block access to sensitive WordPress files
+    @blocked {
+        path /wp-config.php
+        path /xmlrpc.php
+        path */.*
+    }
+    respond @blocked 404
+
+    # Static file caching
+    @static {
+        path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2 *.ttf *.eot
+    }
+    header @static Cache-Control "public, max-age=31536000"
+
+    # Upload size limit (64MB)
+    request_body {
+        max_size 64MB
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/{{ .Domain }}-access.log
+    }
+}

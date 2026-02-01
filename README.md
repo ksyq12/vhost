@@ -3,11 +3,11 @@
 [![Go Version](https://img.shields.io/badge/Go-1.25.6-00ADD8?style=flat&logo=go)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A powerful CLI tool for managing virtual hosts with ease. Supports both **Nginx** and **Apache** web servers. Create, configure, and manage virtual hosts for static sites, PHP applications, Laravel, WordPress, and reverse proxies with a single command.
+A powerful CLI tool for managing virtual hosts with ease. Supports **Nginx**, **Apache**, and **Caddy** web servers. Create, configure, and manage virtual hosts for static sites, PHP applications, Laravel, WordPress, and reverse proxies with a single command.
 
 ## Features
 
-- **Multi-Server Support**: Works with both Nginx and Apache web servers
+- **Multi-Server Support**: Works with Nginx, Apache, and Caddy web servers
 - **Multiple Template Types**: Support for static sites, PHP, Laravel, WordPress, and reverse proxy configurations
 - **SSL/TLS Support**: Automatic Let's Encrypt certificate management via Certbot
 - **Easy Management**: Add, remove, enable, disable, and list virtual hosts with simple commands
@@ -17,7 +17,7 @@ A powerful CLI tool for managing virtual hosts with ease. Supports both **Nginx*
 
 ## Requirements
 
-- **Web Server**: Nginx or Apache installed and running
+- **Web Server**: Nginx, Apache, or Caddy installed and running
 - **Root/sudo access** for modifying web server configurations
 - **Go 1.25.6+** (for building from source)
 - **PHP-FPM** (optional, for PHP/Laravel/WordPress sites)
@@ -368,12 +368,15 @@ driver: nginx
 
 # For Apache
 driver: apache
+
+# For Caddy
+driver: caddy
 ```
 
 ### Configuration File Structure
 
 ```yaml
-driver: nginx  # or "apache"
+driver: nginx  # or "apache" or "caddy"
 default_php: "8.2"
 vhosts:
   example.com:
@@ -409,6 +412,13 @@ vhosts:
 - **Enabled sites:** `/etc/apache2/sites-enabled/` (symlinks)
 - **Access logs:** `${APACHE_LOG_DIR}/<domain>-access.log`
 - **Error logs:** `${APACHE_LOG_DIR}/<domain>-error.log`
+
+#### Caddy
+
+- **Available sites:** `/etc/caddy/sites-available/`
+- **Enabled sites:** `/etc/caddy/sites-enabled/` (symlinks)
+- **Access logs:** `/var/log/caddy/<domain>-access.log`
+- **Note:** Caddy provides automatic HTTPS by default via Let's Encrypt
 
 ## Development
 
@@ -468,7 +478,8 @@ vhost/
 │   ├── driver/                  # Web server drivers
 │   │   ├── driver.go            # Driver interface
 │   │   ├── nginx.go             # Nginx implementation
-│   │   └── apache.go            # Apache implementation
+│   │   ├── apache.go            # Apache implementation
+│   │   └── caddy.go             # Caddy implementation
 │   ├── template/                # Config templates
 │   │   ├── template.go          # Template rendering
 │   │   ├── embedded.go          # Embedded templates
@@ -478,7 +489,13 @@ vhost/
 │   │   │   ├── proxy.tmpl
 │   │   │   ├── laravel.tmpl
 │   │   │   └── wordpress.tmpl
-│   │   └── apache/              # Apache templates
+│   │   ├── apache/              # Apache templates
+│   │   │   ├── static.tmpl
+│   │   │   ├── php.tmpl
+│   │   │   ├── proxy.tmpl
+│   │   │   ├── laravel.tmpl
+│   │   │   └── wordpress.tmpl
+│   │   └── caddy/               # Caddy templates
 │   │       ├── static.tmpl
 │   │       ├── php.tmpl
 │   │       ├── proxy.tmpl

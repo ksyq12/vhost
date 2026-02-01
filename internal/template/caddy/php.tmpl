@@ -1,0 +1,26 @@
+{{ if not .SSL }}http://{{ end }}{{ .Domain }}{{ range .Aliases }}, {{ if not .SSL }}http://{{ end }}{{ . }}{{ end }} {
+    root * {{ .Root }}
+
+    # PHP-FPM Configuration
+    php_fastcgi unix:/run/php/php{{ .PHPVersion }}-fpm.sock
+
+    # Enable file server for static files
+    file_server
+
+    # Security headers
+    header {
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+    }
+
+    # Block access to hidden files
+    @hidden {
+        path */.*
+    }
+    respond @hidden 404
+
+    # Logging
+    log {
+        output file /var/log/caddy/{{ .Domain }}-access.log
+    }
+}

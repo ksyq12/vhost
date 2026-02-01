@@ -1,0 +1,30 @@
+{{ if not .SSL }}http://{{ end }}{{ .Domain }}{{ range .Aliases }}, {{ if not .SSL }}http://{{ end }}{{ . }}{{ end }} {
+    root * {{ .Root }}/public
+
+    # PHP-FPM Configuration
+    php_fastcgi unix:/run/php/php{{ .PHPVersion }}-fpm.sock
+
+    # Laravel URL Rewriting
+    try_files {path} {path}/ /index.php?{query}
+
+    # Enable file server for static files
+    file_server
+
+    # Security headers
+    header {
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+    }
+
+    # Block access to hidden files except .well-known
+    @hidden {
+        path */.*
+        not path /.well-known/*
+    }
+    respond @hidden 404
+
+    # Logging
+    log {
+        output file /var/log/caddy/{{ .Domain }}-access.log
+    }
+}
