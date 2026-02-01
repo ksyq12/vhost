@@ -3,21 +3,22 @@
 [![Go Version](https://img.shields.io/badge/Go-1.25.6-00ADD8?style=flat&logo=go)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A powerful CLI tool for managing Nginx virtual hosts with ease. Create, configure, and manage virtual hosts for static sites, PHP applications, Laravel, WordPress, and reverse proxies with a single command.
+A powerful CLI tool for managing virtual hosts with ease. Supports both **Nginx** and **Apache** web servers. Create, configure, and manage virtual hosts for static sites, PHP applications, Laravel, WordPress, and reverse proxies with a single command.
 
 ## Features
 
+- **Multi-Server Support**: Works with both Nginx and Apache web servers
 - **Multiple Template Types**: Support for static sites, PHP, Laravel, WordPress, and reverse proxy configurations
 - **SSL/TLS Support**: Automatic Let's Encrypt certificate management via Certbot
 - **Easy Management**: Add, remove, enable, disable, and list virtual hosts with simple commands
-- **Safe Operations**: Built-in Nginx configuration testing and automatic rollback on failure
+- **Safe Operations**: Built-in configuration testing and automatic rollback on failure
 - **Flexible Output**: Human-readable colored output or JSON for scripting
 - **Cross-Platform**: Builds for Linux and macOS (amd64/arm64)
 
 ## Requirements
 
-- **Nginx** installed and running
-- **Root/sudo access** for modifying Nginx configurations
+- **Web Server**: Nginx or Apache installed and running
+- **Root/sudo access** for modifying web server configurations
 - **Go 1.25.6+** (for building from source)
 - **PHP-FPM** (optional, for PHP/Laravel/WordPress sites)
 - **Certbot** (optional, for SSL certificate management)
@@ -357,10 +358,22 @@ Set up a cron job or systemd timer to automatically renew certificates:
 
 vhost stores its configuration in `~/.config/vhost/config.yaml`.
 
+### Selecting a Web Server Driver
+
+vhost supports multiple web server drivers. Set the driver in your configuration file:
+
+```yaml
+# For Nginx (default)
+driver: nginx
+
+# For Apache
+driver: apache
+```
+
 ### Configuration File Structure
 
 ```yaml
-driver: nginx
+driver: nginx  # or "apache"
 default_php: "8.2"
 vhosts:
   example.com:
@@ -381,12 +394,21 @@ vhosts:
     created_at: 2026-02-01T11:00:00Z
 ```
 
-### Nginx File Locations
+### File Locations
+
+#### Nginx
 
 - **Available sites:** `/etc/nginx/sites-available/`
 - **Enabled sites:** `/etc/nginx/sites-enabled/` (symlinks)
 - **Access logs:** `/var/log/nginx/<domain>-access.log`
 - **Error logs:** `/var/log/nginx/<domain>-error.log`
+
+#### Apache
+
+- **Available sites:** `/etc/apache2/sites-available/`
+- **Enabled sites:** `/etc/apache2/sites-enabled/` (symlinks)
+- **Access logs:** `${APACHE_LOG_DIR}/<domain>-access.log`
+- **Error logs:** `${APACHE_LOG_DIR}/<domain>-error.log`
 
 ## Development
 
@@ -445,11 +467,18 @@ vhost/
 │   │   └── vhost.go             # VHost struct
 │   ├── driver/                  # Web server drivers
 │   │   ├── driver.go            # Driver interface
-│   │   └── nginx.go             # Nginx implementation
-│   ├── template/                # Nginx config templates
+│   │   ├── nginx.go             # Nginx implementation
+│   │   └── apache.go            # Apache implementation
+│   ├── template/                # Config templates
 │   │   ├── template.go          # Template rendering
 │   │   ├── embedded.go          # Embedded templates
-│   │   └── nginx/               # Nginx templates
+│   │   ├── nginx/               # Nginx templates
+│   │   │   ├── static.tmpl
+│   │   │   ├── php.tmpl
+│   │   │   ├── proxy.tmpl
+│   │   │   ├── laravel.tmpl
+│   │   │   └── wordpress.tmpl
+│   │   └── apache/              # Apache templates
 │   │       ├── static.tmpl
 │   │       ├── php.tmpl
 │   │       ├── proxy.tmpl
