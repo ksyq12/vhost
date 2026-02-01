@@ -14,7 +14,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "vhost",
 	Short: "Virtual host management CLI",
-	Long: `vhost is a CLI tool for managing virtual hosts on Nginx and Apache.
+	Long: `vhost is a CLI tool for managing virtual hosts on Nginx, Apache, and Caddy.
 
 It provides commands to add, remove, enable, disable, and list virtual hosts,
 as well as SSL certificate management through Let's Encrypt.`,
