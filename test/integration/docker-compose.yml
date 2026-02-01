@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./sites-available:/etc/nginx/sites-available
+      - ./sites-enabled:/etc/nginx/sites-enabled
+      - ./www:/var/www
+    command: >
+      /bin/sh -c "
+        mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled &&
+        echo 'include /etc/nginx/sites-enabled/*;' >> /etc/nginx/nginx.conf &&
+        nginx -g 'daemon off;'
+      "

@@ -1,0 +1,14 @@
+# Binary
+vhost
+build/
+
+# Test coverage
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
