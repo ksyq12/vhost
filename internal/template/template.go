@@ -25,8 +25,14 @@ type TemplateData struct {
 func Render(driverName string, vhost *config.VHost) (string, error) {
 	tmplPath := fmt.Sprintf("%s/%s.tmpl", driverName, vhost.Type)
 
+	// Get template filesystem for the driver
+	fs, err := getTemplateFS(driverName)
+	if err != nil {
+		return "", err
+	}
+
 	// Read template content
-	content, err := nginxTemplates.ReadFile(tmplPath)
+	content, err := fs.ReadFile(tmplPath)
 	if err != nil {
 		return "", fmt.Errorf("template not found: %s/%s", driverName, vhost.Type)
 	}

@@ -1,0 +1,125 @@
+{{ if .SSL }}<VirtualHost *:80>
+    ServerName {{ .Domain }}{{ range .Aliases }}
+    ServerAlias {{ . }}{{ end }}
+
+    # Redirect to HTTPS
+    Redirect permanent / https://{{ .Domain }}/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName {{ .Domain }}{{ range .Aliases }}
+    ServerAlias {{ . }}{{ end }}
+
+    DocumentRoot {{ .Root }}
+
+    <Directory {{ .Root }}>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+
+        # WordPress Permalinks
+        RewriteEngine On
+        RewriteBase /
+        RewriteRule ^index\.php$ - [L]
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteRule . /index.php [L]
+    </Directory>
+
+    DirectoryIndex index.php index.html
+
+    # PHP-FPM Configuration
+    <FilesMatch \.php$>
+        SetHandler "proxy:unix:/run/php/php{{ .PHPVersion }}-fpm.sock|fcgi://localhost"
+    </FilesMatch>
+
+    # Deny access to sensitive files
+    <FilesMatch "^\.ht">
+        Require all denied
+    </FilesMatch>
+    <Files wp-config.php>
+        Require all denied
+    </Files>
+    <Files xmlrpc.php>
+        Require all denied
+    </Files>
+
+    # Static file caching
+    <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+        ExpiresActive On
+        ExpiresDefault "access plus 1 year"
+    </FilesMatch>
+
+    # Upload size limit
+    LimitRequestBody 67108864
+
+    # SSL Configuration
+    SSLEngine on
+    SSLCertificateFile {{ .SSLCert }}
+    SSLCertificateKeyFile {{ .SSLKey }}
+    SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1
+
+    # Security headers
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Logging
+    ErrorLog ${APACHE_LOG_DIR}/{{ .Domain }}-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ .Domain }}-access.log combined
+</VirtualHost>
+{{ else }}<VirtualHost *:80>
+    ServerName {{ .Domain }}{{ range .Aliases }}
+    ServerAlias {{ . }}{{ end }}
+
+    DocumentRoot {{ .Root }}
+
+    <Directory {{ .Root }}>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+
+        # WordPress Permalinks
+        RewriteEngine On
+        RewriteBase /
+        RewriteRule ^index\.php$ - [L]
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteRule . /index.php [L]
+    </Directory>
+
+    DirectoryIndex index.php index.html
+
+    # PHP-FPM Configuration
+    <FilesMatch \.php$>
+        SetHandler "proxy:unix:/run/php/php{{ .PHPVersion }}-fpm.sock|fcgi://localhost"
+    </FilesMatch>
+
+    # Deny access to sensitive files
+    <FilesMatch "^\.ht">
+        Require all denied
+    </FilesMatch>
+    <Files wp-config.php>
+        Require all denied
+    </Files>
+    <Files xmlrpc.php>
+        Require all denied
+    </Files>
+
+    # Static file caching
+    <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+        ExpiresActive On
+        ExpiresDefault "access plus 1 year"
+    </FilesMatch>
+
+    # Upload size limit
+    LimitRequestBody 67108864
+
+    # Security headers
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Logging
+    ErrorLog ${APACHE_LOG_DIR}/{{ .Domain }}-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ .Domain }}-access.log combined
+</VirtualHost>
+{{ end }}

@@ -1,0 +1,71 @@
+{{ if .SSL }}<VirtualHost *:80>
+    ServerName {{ .Domain }}{{ range .Aliases }}
+    ServerAlias {{ . }}{{ end }}
+
+    # Redirect to HTTPS
+    Redirect permanent / https://{{ .Domain }}/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName {{ .Domain }}{{ range .Aliases }}
+    ServerAlias {{ . }}{{ end }}
+
+    # Proxy Configuration
+    ProxyPreserveHost On
+    ProxyPass / {{ .ProxyPass }}/
+    ProxyPassReverse / {{ .ProxyPass }}/
+
+    # WebSocket Support
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/?(.*) wss://{{ .ProxyPass | replace "http://" "" | replace "https://" "" }}/$1 [P,L]
+
+    # Proxy Headers
+    RequestHeader set X-Real-IP %{REMOTE_ADDR}s
+    RequestHeader set X-Forwarded-For %{REMOTE_ADDR}s
+    RequestHeader set X-Forwarded-Proto https
+
+    # SSL Configuration
+    SSLEngine on
+    SSLCertificateFile {{ .SSLCert }}
+    SSLCertificateKeyFile {{ .SSLKey }}
+    SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1
+
+    # Security headers
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Logging
+    ErrorLog ${APACHE_LOG_DIR}/{{ .Domain }}-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ .Domain }}-access.log combined
+</VirtualHost>
+{{ else }}<VirtualHost *:80>
+    ServerName {{ .Domain }}{{ range .Aliases }}
+    ServerAlias {{ . }}{{ end }}
+
+    # Proxy Configuration
+    ProxyPreserveHost On
+    ProxyPass / {{ .ProxyPass }}/
+    ProxyPassReverse / {{ .ProxyPass }}/
+
+    # WebSocket Support
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/?(.*) ws://{{ .ProxyPass | replace "http://" "" | replace "https://" "" }}/$1 [P,L]
+
+    # Proxy Headers
+    RequestHeader set X-Real-IP %{REMOTE_ADDR}s
+    RequestHeader set X-Forwarded-For %{REMOTE_ADDR}s
+    RequestHeader set X-Forwarded-Proto http
+
+    # Security headers
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Logging
+    ErrorLog ${APACHE_LOG_DIR}/{{ .Domain }}-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ .Domain }}-access.log combined
+</VirtualHost>
+{{ end }}
