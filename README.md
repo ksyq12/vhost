@@ -442,6 +442,19 @@ make test
 make test-coverage
 ```
 
+#### Test Coverage
+
+| Package | Coverage |
+|---------|----------|
+| `internal/executor` | 100% |
+| `internal/output` | 100% |
+| `internal/ssl` | 95.1% |
+| `internal/input` | 87.5% |
+| `internal/config` | 81% |
+| `internal/template` | 79.2% |
+| `internal/driver` | 76.4% |
+| `internal/cli` | 15% |
+
 ### Code Quality
 
 ```bash
@@ -480,6 +493,10 @@ vhost/
 │   │   ├── nginx.go             # Nginx implementation
 │   │   ├── apache.go            # Apache implementation
 │   │   └── caddy.go             # Caddy implementation
+│   ├── executor/                # Command execution abstraction
+│   │   └── executor.go          # CommandExecutor interface & implementations
+│   ├── input/                   # User input handling
+│   │   └── reader.go            # Reader interface & implementations
 │   ├── template/                # Config templates
 │   │   ├── template.go          # Template rendering
 │   │   ├── embedded.go          # Embedded templates
