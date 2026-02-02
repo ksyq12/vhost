@@ -1,10 +1,15 @@
 package cli
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/ksyq12/vhost/internal/config"
 	"github.com/ksyq12/vhost/internal/driver"
@@ -124,5 +129,118 @@ func newSuccessResult(domain, action string) CommandResult {
 		Success: true,
 		Domain:  domain,
 		Action:  action,
+	}
+}
+
+// getCertExpiry reads an SSL certificate and returns its expiry time
+func getCertExpiry(certPath string) (time.Time, error) {
+	data, err := os.ReadFile(certPath)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to read certificate: %w", err)
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return time.Time{}, fmt.Errorf("failed to parse certificate PEM")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	return cert.NotAfter, nil
+}
+
+// getEditor returns the user's preferred editor
+func getEditor() string {
+	if editor := os.Getenv("EDITOR"); editor != "" {
+		return editor
+	}
+	return "vi"
+}
+
+// parseLogPaths extracts access_log and error_log paths from a config file
+func parseLogPaths(drv driver.Driver, domain string) (accessLog, errorLog string, err error) {
+	configPath := filepath.Join(drv.Paths().Available, domain)
+	if drv.Name() == "apache" {
+		configPath = filepath.Join(drv.Paths().Available, domain+".conf")
+	}
+
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	configStr := string(content)
+
+	switch drv.Name() {
+	case "nginx":
+		accessLog = parseNginxLogPath(configStr, "access_log")
+		errorLog = parseNginxLogPath(configStr, "error_log")
+	case "apache":
+		accessLog = parseApacheLogPath(configStr, "CustomLog")
+		errorLog = parseApacheLogPath(configStr, "ErrorLog")
+	case "caddy":
+		// Caddy uses a different log format, try to find log path
+		accessLog = parseCaddyLogPath(configStr)
+		errorLog = accessLog // Caddy typically uses a single log file
+	}
+
+	// Fall back to default paths if not found in config
+	if accessLog == "" {
+		accessLog = getDefaultLogPath(drv.Name(), domain, "access")
+	}
+	if errorLog == "" {
+		errorLog = getDefaultLogPath(drv.Name(), domain, "error")
+	}
+
+	return accessLog, errorLog, nil
+}
+
+// parseNginxLogPath extracts log path from nginx config
+func parseNginxLogPath(config, directive string) string {
+	pattern := regexp.MustCompile(directive + `\s+([^\s;]+)`)
+	matches := pattern.FindStringSubmatch(config)
+	if len(matches) >= 2 {
+		return matches[1]
+	}
+	return ""
+}
+
+// parseApacheLogPath extracts log path from apache config
+func parseApacheLogPath(config, directive string) string {
+	pattern := regexp.MustCompile(directive + `\s+([^\s]+)`)
+	matches := pattern.FindStringSubmatch(config)
+	if len(matches) >= 2 {
+		path := matches[1]
+		// Handle Apache variable like ${APACHE_LOG_DIR}
+		path = strings.ReplaceAll(path, "${APACHE_LOG_DIR}", "/var/log/apache2")
+		return path
+	}
+	return ""
+}
+
+// parseCaddyLogPath extracts log path from caddy config
+func parseCaddyLogPath(config string) string {
+	pattern := regexp.MustCompile(`output\s+file\s+([^\s\}]+)`)
+	matches := pattern.FindStringSubmatch(config)
+	if len(matches) >= 2 {
+		return matches[1]
+	}
+	return ""
+}
+
+// getDefaultLogPath returns default log path for a driver
+func getDefaultLogPath(driverName, domain, logType string) string {
+	switch driverName {
+	case "nginx":
+		return fmt.Sprintf("/var/log/nginx/%s-%s.log", domain, logType)
+	case "apache":
+		return fmt.Sprintf("/var/log/apache2/%s-%s.log", domain, logType)
+	case "caddy":
+		return fmt.Sprintf("/var/log/caddy/%s.log", domain)
+	default:
+		return ""
 	}
 }
