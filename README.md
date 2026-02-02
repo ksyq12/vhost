@@ -255,6 +255,143 @@ Show SSL certificate status for all domains.
 vhost ssl status
 ```
 
+### `vhost show <domain>`
+
+Show detailed information about a virtual host.
+
+```bash
+vhost show <domain> [flags]
+```
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output in JSON format |
+
+**Example Output:**
+
+```
+Domain:     example.com
+Type:       laravel
+Root:       /var/www/laravel
+PHP:        8.2
+SSL:        enabled
+  Cert:     /etc/letsencrypt/live/example.com/fullchain.pem
+  Key:      /etc/letsencrypt/live/example.com/privkey.pem
+  Expires:  2026-05-01
+Enabled:    yes
+Created:    2026-02-01 10:00:00
+```
+
+### `vhost edit <domain>`
+
+Open the virtual host configuration file in an editor.
+
+```bash
+vhost edit <domain>
+```
+
+Uses the `$EDITOR` environment variable (defaults to `vi`).
+
+**Examples:**
+
+```bash
+# Open with default editor
+vhost edit example.com
+
+# Open with specific editor
+EDITOR=nano vhost edit example.com
+```
+
+**Note:** After editing, test and reload your web server manually:
+
+```bash
+# Nginx
+sudo nginx -t && sudo systemctl reload nginx
+
+# Apache
+sudo apache2ctl configtest && sudo systemctl reload apache2
+
+# Caddy
+sudo caddy validate && sudo systemctl reload caddy
+```
+
+### `vhost logs <domain>`
+
+View access and error logs for a virtual host.
+
+```bash
+vhost logs <domain> [flags]
+```
+
+**Flags:**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--access` | | Show access log only |
+| `--error` | | Show error log only |
+| `--follow` | `-f` | Follow log output (like tail -f) |
+| `--lines` | `-n` | Number of lines to show (default: 20) |
+
+**Examples:**
+
+```bash
+# Show both logs (last 20 lines)
+vhost logs example.com
+
+# Show only access log
+vhost logs example.com --access
+
+# Show only error log
+vhost logs example.com --error
+
+# Follow logs in real-time
+vhost logs example.com -f
+
+# Show last 50 lines
+vhost logs example.com -n 50
+```
+
+### `vhost doctor`
+
+Run diagnostic checks on the system and vhost configuration.
+
+```bash
+vhost doctor [flags]
+```
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output in JSON format |
+
+**Checks:**
+
+- Web server installation (Nginx, Apache, Caddy)
+- PHP-FPM status (versions 8.3, 8.2, 8.1, 8.0, 7.4)
+- Certbot installation
+- Configuration file validity
+- Virtual host status (enabled status, root directory, SSL certificates)
+
+**Example Output:**
+
+```
+Checking system requirements...
+✓ Nginx installed (1.25.3)
+✓ PHP-FPM 8.2 running
+✓ Certbot installed
+
+Checking configuration...
+✓ Config file exists (~/.config/vhost/config.yaml)
+✓ Nginx config syntax OK
+
+Checking vhosts...
+✓ example.com - enabled, config valid
+⚠ test.com - root directory missing
+```
+
 ## Template Types
 
 ### `static`
