@@ -8,6 +8,7 @@ import (
 
 var (
 	jsonOutput bool
+	version    = "dev"
 )
 
 // rootCmd represents the base command
@@ -25,6 +26,12 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+// SetVersion sets the version string for the CLI
+func SetVersion(v string) {
+	version = v
+	rootCmd.Version = v
 }
 
 func init() {

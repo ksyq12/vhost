@@ -1,6 +1,7 @@
 # Binary
 /vhost
 build/
+dist/
 
 # Test coverage
 coverage.out
