@@ -42,14 +42,20 @@ type Paths struct {
 }
 
 // registry holds all registered drivers
+// Deprecated: The global registry is kept for backward compatibility.
+// New code should use NewNginxWithPaths, NewApacheWithPaths, or NewCaddyWithPaths
+// to create drivers with platform-specific paths.
 var registry = make(map[string]Driver)
 
 // Register adds a driver to the registry
+// Deprecated: Use NewXxxWithPaths constructors instead for platform-aware driver creation.
 func Register(d Driver) {
 	registry[d.Name()] = d
 }
 
 // Get returns a driver by name
+// Deprecated: Returns a driver with default Linux paths. Use NewXxxWithPaths constructors
+// with platform-detected paths for cross-platform compatibility.
 func Get(name string) (Driver, bool) {
 	d, ok := registry[name]
 	return d, ok

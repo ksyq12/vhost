@@ -2,6 +2,9 @@ package cli
 
 import (
 	"testing"
+
+	"github.com/ksyq12/vhost/internal/config"
+	"github.com/ksyq12/vhost/internal/driver"
 )
 
 func TestValidateDomain(t *testing.T) {
@@ -134,4 +137,141 @@ func TestCommandResult(t *testing.T) {
 			t.Errorf("expected empty message, got %s", result.Message)
 		}
 	})
+}
+
+func TestResolvePaths(t *testing.T) {
+	t.Run("config override takes priority", func(t *testing.T) {
+		cfg := &config.Config{
+			Driver: "nginx",
+			Paths: &config.DriverPaths{
+				Available: "/custom/available",
+				Enabled:   "/custom/enabled",
+			},
+		}
+
+		paths, err := resolvePaths(cfg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if paths.Available != "/custom/available" {
+			t.Errorf("expected /custom/available, got %s", paths.Available)
+		}
+		if paths.Enabled != "/custom/enabled" {
+			t.Errorf("expected /custom/enabled, got %s", paths.Enabled)
+		}
+	})
+
+	t.Run("partial config paths returns error", func(t *testing.T) {
+		cfg := &config.Config{
+			Driver: "nginx",
+			Paths: &config.DriverPaths{
+				Available: "/custom/available",
+				// Enabled is empty
+			},
+		}
+
+		_, err := resolvePaths(cfg)
+		if err == nil {
+			t.Error("expected error for partial config paths")
+		}
+	})
+
+	t.Run("relative paths return error", func(t *testing.T) {
+		cfg := &config.Config{
+			Driver: "nginx",
+			Paths: &config.DriverPaths{
+				Available: "relative/path",
+				Enabled:   "/absolute/path",
+			},
+		}
+
+		_, err := resolvePaths(cfg)
+		if err == nil {
+			t.Error("expected error for relative path")
+		}
+	})
+
+	t.Run("both relative paths return error", func(t *testing.T) {
+		cfg := &config.Config{
+			Driver: "nginx",
+			Paths: &config.DriverPaths{
+				Available: "./available",
+				Enabled:   "../enabled",
+			},
+		}
+
+		_, err := resolvePaths(cfg)
+		if err == nil {
+			t.Error("expected error for relative paths")
+		}
+	})
+
+	t.Run("auto-detection fallback", func(t *testing.T) {
+		cfg := &config.Config{
+			Driver: "nginx",
+			// Paths is nil
+		}
+
+		paths, err := resolvePaths(cfg)
+		if err != nil {
+			// This may fail on unsupported platforms, which is expected
+			t.Logf("auto-detection failed (may be expected): %v", err)
+			return
+		}
+
+		// Paths should be non-empty
+		if paths.Available == "" {
+			t.Error("available path should not be empty")
+		}
+		if paths.Enabled == "" {
+			t.Error("enabled path should not be empty")
+		}
+	})
+}
+
+func TestCreateDriverWithPaths(t *testing.T) {
+	tests := []struct {
+		name       string
+		driverName string
+		wantErr    bool
+	}{
+		{"nginx", "nginx", false},
+		{"apache", "apache", false},
+		{"caddy", "caddy", false},
+		{"unknown", "unknown", true},
+	}
+
+	paths := driver.Paths{
+		Available: "/test/available",
+		Enabled:   "/test/enabled",
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			drv, err := createDriverWithPaths(tt.driverName, paths)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error but got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if drv.Name() != tt.driverName {
+				t.Errorf("expected driver name %s, got %s", tt.driverName, drv.Name())
+			}
+
+			drvPaths := drv.Paths()
+			if drvPaths.Available != paths.Available {
+				t.Errorf("expected available %s, got %s", paths.Available, drvPaths.Available)
+			}
+			if drvPaths.Enabled != paths.Enabled {
+				t.Errorf("expected enabled %s, got %s", paths.Enabled, drvPaths.Enabled)
+			}
+		})
+	}
 }

@@ -158,6 +158,90 @@ func TestConfig(t *testing.T) {
 	})
 }
 
+func TestConfigPaths(t *testing.T) {
+	// Create temp directory for test config
+	tempDir := t.TempDir()
+
+	// Override config path for testing
+	originalHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	defer os.Setenv("HOME", originalHome)
+
+	// Create the .config/vhost directory
+	configDir := filepath.Join(tempDir, ".config", "vhost")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("failed to create config dir: %v", err)
+	}
+
+	t.Run("NewConfigHasNilPaths", func(t *testing.T) {
+		cfg := New()
+		if cfg.Paths != nil {
+			t.Error("new config should have nil Paths")
+		}
+	})
+
+	t.Run("SaveAndLoadWithPaths", func(t *testing.T) {
+		cfg := New()
+		cfg.Paths = &DriverPaths{
+			Available: "/custom/sites-available",
+			Enabled:   "/custom/sites-enabled",
+		}
+
+		if err := cfg.Save(); err != nil {
+			t.Fatalf("Save failed: %v", err)
+		}
+
+		loaded, err := Load()
+		if err != nil {
+			t.Fatalf("Load failed: %v", err)
+		}
+
+		if loaded.Paths == nil {
+			t.Fatal("loaded config should have Paths")
+		}
+		if loaded.Paths.Available != "/custom/sites-available" {
+			t.Errorf("expected /custom/sites-available, got %s", loaded.Paths.Available)
+		}
+		if loaded.Paths.Enabled != "/custom/sites-enabled" {
+			t.Errorf("expected /custom/sites-enabled, got %s", loaded.Paths.Enabled)
+		}
+	})
+
+	t.Run("SaveWithoutPaths", func(t *testing.T) {
+		cfg := New()
+		// Paths is nil by default
+
+		if err := cfg.Save(); err != nil {
+			t.Fatalf("Save failed: %v", err)
+		}
+
+		// Read raw file to verify paths is omitted
+		path := filepath.Join(configDir, "config.yaml")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("failed to read config file: %v", err)
+		}
+
+		content := string(data)
+		if contains(content, "paths:") {
+			t.Error("paths should be omitted when nil (omitempty)")
+		}
+	})
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 func TestVHostTypes(t *testing.T) {
 	t.Run("ValidTypes", func(t *testing.T) {
 		types := ValidTypes()

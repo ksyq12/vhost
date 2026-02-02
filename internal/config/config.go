@@ -8,10 +8,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// DriverPaths contains custom path overrides for the driver.
+type DriverPaths struct {
+	Available string `yaml:"available,omitempty"`
+	Enabled   string `yaml:"enabled,omitempty"`
+}
+
 // Config represents the application configuration
 type Config struct {
 	Driver     string            `yaml:"driver"`
 	DefaultPHP string            `yaml:"default_php"`
+	Paths      *DriverPaths      `yaml:"paths,omitempty"`
 	VHosts     map[string]*VHost `yaml:"vhosts"`
 }
 

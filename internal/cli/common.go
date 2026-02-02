@@ -14,6 +14,7 @@ import (
 	"github.com/ksyq12/vhost/internal/config"
 	"github.com/ksyq12/vhost/internal/driver"
 	"github.com/ksyq12/vhost/internal/output"
+	"github.com/ksyq12/vhost/internal/platform"
 )
 
 // loadConfigAndDriver loads config and returns the appropriate driver
@@ -23,12 +24,79 @@ func loadConfigAndDriver() (*config.Config, driver.Driver, error) {
 		return nil, nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	drv, ok := driver.Get(cfg.Driver)
-	if !ok {
-		return nil, nil, fmt.Errorf("driver %s not found", cfg.Driver)
+	// Resolve paths: config override > platform detection
+	paths, err := resolvePaths(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create driver with resolved paths
+	drv, err := createDriverWithPaths(cfg.Driver, paths)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return cfg, drv, nil
+}
+
+// resolvePaths determines the paths to use for the driver.
+// Priority: config override > platform auto-detection
+func resolvePaths(cfg *config.Config) (driver.Paths, error) {
+	// Priority 1: Use config paths if provided
+	if cfg.Paths != nil && cfg.Paths.Available != "" && cfg.Paths.Enabled != "" {
+		// Validate that paths are absolute
+		if !filepath.IsAbs(cfg.Paths.Available) {
+			return driver.Paths{}, fmt.Errorf("paths.available must be an absolute path: %s", cfg.Paths.Available)
+		}
+		if !filepath.IsAbs(cfg.Paths.Enabled) {
+			return driver.Paths{}, fmt.Errorf("paths.enabled must be an absolute path: %s", cfg.Paths.Enabled)
+		}
+
+		return driver.Paths{
+			Available: cfg.Paths.Available,
+			Enabled:   cfg.Paths.Enabled,
+		}, nil
+	}
+
+	// Validate partial config (only one path specified)
+	if cfg.Paths != nil && (cfg.Paths.Available != "" || cfg.Paths.Enabled != "") {
+		return driver.Paths{}, fmt.Errorf("both paths.available and paths.enabled must be set if either is specified")
+	}
+
+	// Priority 2: Auto-detect platform paths
+	platformPaths, err := platform.DetectPaths()
+	if err != nil {
+		return driver.Paths{}, fmt.Errorf("failed to detect platform paths: %w\n\n"+
+			"To manually configure paths, add to ~/.config/vhost/config.yaml:\n"+
+			"paths:\n"+
+			"  available: /path/to/sites-available\n"+
+			"  enabled: /path/to/sites-enabled", err)
+	}
+
+	// Get paths for the configured driver
+	pathConfig, err := platformPaths.GetPathsForDriver(cfg.Driver)
+	if err != nil {
+		return driver.Paths{}, err
+	}
+
+	return driver.Paths{
+		Available: pathConfig.Available,
+		Enabled:   pathConfig.Enabled,
+	}, nil
+}
+
+// createDriverWithPaths creates a driver instance with the specified paths.
+func createDriverWithPaths(driverName string, paths driver.Paths) (driver.Driver, error) {
+	switch driverName {
+	case "nginx":
+		return driver.NewNginxWithPaths(paths.Available, paths.Enabled), nil
+	case "apache":
+		return driver.NewApacheWithPaths(paths.Available, paths.Enabled), nil
+	case "caddy":
+		return driver.NewCaddyWithPaths(paths.Available, paths.Enabled), nil
+	default:
+		return nil, fmt.Errorf("unknown driver: %s (available: nginx, apache, caddy)", driverName)
+	}
 }
 
 // testAndReload tests config and reloads the web server
