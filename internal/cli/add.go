@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -99,9 +98,9 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to render template: %w", err)
 	}
 
-	// Check if running as root for system operations
-	if os.Geteuid() != 0 {
-		output.Warn("Not running as root. Some operations may fail.")
+	// Require root for system operations
+	if err := requireRoot(); err != nil {
+		return err
 	}
 
 	// Add vhost via driver

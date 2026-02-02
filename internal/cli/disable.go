@@ -32,6 +32,11 @@ func runDisable(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Require root for system operations
+	if err := requireRoot(); err != nil {
+		return err
+	}
+
 	// Load config and driver
 	cfg, drv, err := loadConfigAndDriver()
 	if err != nil {

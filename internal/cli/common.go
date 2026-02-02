@@ -139,28 +139,100 @@ func outputResult(data interface{}, successMsg string, args ...interface{}) erro
 	return nil
 }
 
-// validateDomain checks if domain is valid
+// Maximum domain length according to RFC 1035
+const maxDomainLength = 253
+
+// domainPattern validates domain format (RFC 1035 compliant)
+var domainPattern = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$`)
+
+// validateDomain checks if domain is valid and secure.
+// Validates against:
+//   - Empty or whitespace-only input
+//   - Maximum length (253 characters per RFC 1035)
+//   - Path traversal sequences (../, ./)
+//   - Shell metacharacters (;|&$`<>)
+//   - Null byte injection
+//   - RFC 1035 domain format compliance
 func validateDomain(domain string) error {
+	// Check for empty domain
 	if domain == "" {
 		return fmt.Errorf("domain cannot be empty")
+	}
+
+	// Check for whitespace
+	trimmed := strings.TrimSpace(domain)
+	if trimmed != domain {
+		return fmt.Errorf("domain cannot contain leading or trailing whitespace")
 	}
 	if strings.Contains(domain, " ") {
 		return fmt.Errorf("domain cannot contain spaces")
 	}
+
+	// Check maximum length (RFC 1035)
+	if len(domain) > maxDomainLength {
+		return fmt.Errorf("domain exceeds maximum length of %d characters", maxDomainLength)
+	}
+
+	// Security: Prevent path traversal attacks
+	if containsPathTraversal(domain) {
+		return fmt.Errorf("domain contains invalid path traversal sequences")
+	}
+
+	// Security: Prevent shell injection
+	if containsShellMetaChars(domain) {
+		return fmt.Errorf("domain contains invalid shell metacharacters")
+	}
+
+	// Security: Prevent null byte injection
+	if containsNullByte(domain) {
+		return fmt.Errorf("domain contains null byte")
+	}
+
+	// Validate hyphen rules (can't start or end with hyphen)
 	if strings.HasPrefix(domain, "-") || strings.HasSuffix(domain, "-") {
 		return fmt.Errorf("domain cannot start or end with hyphen")
 	}
+
+	// Validate domain format (RFC 1035 compliance)
+	if !isValidDomainFormat(domain) {
+		return fmt.Errorf("invalid domain format: must contain only letters, numbers, hyphens, and dots")
+	}
+
 	return nil
 }
 
-// validateRoot checks if root path is valid
+// validateRoot checks if root path is valid and secure.
+// Validates against:
+//   - Non-absolute paths
+//   - Path traversal sequences (../, ./)
+//   - Null byte injection
+//   - Non-canonical paths (containing /./ or /../)
 func validateRoot(root string) error {
 	if root == "" {
 		return nil // empty is allowed (will be validated elsewhere if required)
 	}
+
+	// Must be absolute path
 	if !filepath.IsAbs(root) {
 		return fmt.Errorf("root path must be absolute: %s", root)
 	}
+
+	// Security: Prevent path traversal attacks
+	if containsPathTraversal(root) {
+		return fmt.Errorf("root path contains invalid traversal sequences: %s", root)
+	}
+
+	// Security: Prevent null byte injection
+	if containsNullByte(root) {
+		return fmt.Errorf("root path contains null byte")
+	}
+
+	// Verify path is canonical (Clean doesn't change it)
+	cleaned := filepath.Clean(root)
+	if cleaned != root {
+		return fmt.Errorf("root path contains invalid sequences: use %s instead of %s", cleaned, root)
+	}
+
 	return nil
 }
 
@@ -311,4 +383,62 @@ func getDefaultLogPath(driverName, domain, logType string) string {
 	default:
 		return ""
 	}
+}
+
+// Security validation helper functions
+
+// containsPathTraversal checks for path traversal patterns that could be used
+// to access files outside the intended directory.
+func containsPathTraversal(s string) bool {
+	patterns := []string{
+		"../",  // Unix path traversal
+		"..\\", // Windows path traversal
+		"./",   // Current directory reference
+		".\\",  // Windows current directory
+	}
+	for _, pattern := range patterns {
+		if strings.Contains(s, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// containsNullByte checks for null byte injection attempts.
+// Null bytes can be used to truncate strings in C-based libraries.
+func containsNullByte(s string) bool {
+	return strings.Contains(s, "\x00")
+}
+
+// containsShellMetaChars checks for shell metacharacters that could be used
+// for command injection attacks.
+func containsShellMetaChars(s string) bool {
+	// Characters that have special meaning in shells
+	metaChars := []rune{';', '|', '&', '$', '`', '<', '>', '\n', '\r'}
+	for _, r := range s {
+		for _, meta := range metaChars {
+			if r == meta {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// isValidDomainFormat validates domain name format according to RFC 1035.
+// Allows alphanumeric characters, hyphens, and dots.
+func isValidDomainFormat(domain string) bool {
+	if len(domain) == 0 || len(domain) > maxDomainLength {
+		return false
+	}
+	return domainPattern.MatchString(domain)
+}
+
+// requireRoot checks if the current process is running as root (UID 0).
+// Returns an error if not running as root, enforcing security policy.
+func requireRoot() error {
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("this operation requires root privileges. Please run with sudo")
+	}
+	return nil
 }

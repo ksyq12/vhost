@@ -3,11 +3,13 @@ package cli
 import (
 	"os"
 
+	"github.com/ksyq12/vhost/internal/logger"
 	"github.com/spf13/cobra"
 )
 
 var (
 	jsonOutput bool
+	verbose    bool
 	version    = "dev"
 )
 
@@ -23,6 +25,11 @@ as well as SSL certificate management through Let's Encrypt.`,
 
 // Execute runs the root command
 func Execute() {
+	// Initialize logger based on verbose flag (parsed by cobra)
+	cobra.OnInitialize(func() {
+		logger.Init(verbose)
+	})
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -36,4 +43,5 @@ func SetVersion(v string) {
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging for debugging")
 }
