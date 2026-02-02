@@ -3,16 +3,17 @@ package driver
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/ksyq12/vhost/internal/config"
+	"github.com/ksyq12/vhost/internal/executor"
 )
 
 // ApacheDriver implements the Driver interface for Apache2
 type ApacheDriver struct {
 	paths Paths
+	exec  executor.CommandExecutor
 }
 
 // NewApache creates a new Apache driver with default paths
@@ -22,6 +23,7 @@ func NewApache() *ApacheDriver {
 			Available: "/etc/apache2/sites-available",
 			Enabled:   "/etc/apache2/sites-enabled",
 		},
+		exec: executor.NewSystemExecutor(),
 	}
 }
 
@@ -32,6 +34,18 @@ func NewApacheWithPaths(available, enabled string) *ApacheDriver {
 			Available: available,
 			Enabled:   enabled,
 		},
+		exec: executor.NewSystemExecutor(),
+	}
+}
+
+// NewApacheWithExecutor creates a new Apache driver with custom paths and executor (for testing)
+func NewApacheWithExecutor(available, enabled string, exec executor.CommandExecutor) *ApacheDriver {
+	return &ApacheDriver{
+		paths: Paths{
+			Available: available,
+			Enabled:   enabled,
+		},
+		exec: exec,
 	}
 }
 
@@ -187,8 +201,7 @@ func (a *ApacheDriver) IsEnabled(domain string) (bool, error) {
 
 // Test validates the apache config syntax
 func (a *ApacheDriver) Test() error {
-	cmd := exec.Command("apache2ctl", "configtest")
-	output, err := cmd.CombinedOutput()
+	output, err := a.exec.Execute("apache2ctl", "configtest")
 	if err != nil {
 		return fmt.Errorf("apache config test failed: %s", string(output))
 	}
@@ -197,12 +210,10 @@ func (a *ApacheDriver) Test() error {
 
 // Reload reloads apache to apply changes
 func (a *ApacheDriver) Reload() error {
-	cmd := exec.Command("systemctl", "reload", "apache2")
-	output, err := cmd.CombinedOutput()
+	output, err := a.exec.Execute("systemctl", "reload", "apache2")
 	if err != nil {
 		// Try apache2ctl graceful as fallback
-		cmd = exec.Command("apache2ctl", "graceful")
-		output, err = cmd.CombinedOutput()
+		output, err = a.exec.Execute("apache2ctl", "graceful")
 		if err != nil {
 			return fmt.Errorf("failed to reload apache: %s", string(output))
 		}

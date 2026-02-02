@@ -3,16 +3,17 @@ package driver
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/ksyq12/vhost/internal/config"
+	"github.com/ksyq12/vhost/internal/executor"
 )
 
 // NginxDriver implements the Driver interface for Nginx
 type NginxDriver struct {
 	paths Paths
+	exec  executor.CommandExecutor
 }
 
 // NewNginx creates a new Nginx driver with default paths
@@ -22,6 +23,7 @@ func NewNginx() *NginxDriver {
 			Available: "/etc/nginx/sites-available",
 			Enabled:   "/etc/nginx/sites-enabled",
 		},
+		exec: executor.NewSystemExecutor(),
 	}
 }
 
@@ -32,6 +34,18 @@ func NewNginxWithPaths(available, enabled string) *NginxDriver {
 			Available: available,
 			Enabled:   enabled,
 		},
+		exec: executor.NewSystemExecutor(),
+	}
+}
+
+// NewNginxWithExecutor creates a new Nginx driver with custom paths and executor (for testing)
+func NewNginxWithExecutor(available, enabled string, exec executor.CommandExecutor) *NginxDriver {
+	return &NginxDriver{
+		paths: Paths{
+			Available: available,
+			Enabled:   enabled,
+		},
+		exec: exec,
 	}
 }
 
@@ -178,8 +192,7 @@ func (n *NginxDriver) IsEnabled(domain string) (bool, error) {
 
 // Test validates the nginx config syntax
 func (n *NginxDriver) Test() error {
-	cmd := exec.Command("nginx", "-t")
-	output, err := cmd.CombinedOutput()
+	output, err := n.exec.Execute("nginx", "-t")
 	if err != nil {
 		return fmt.Errorf("nginx config test failed: %s", string(output))
 	}
@@ -188,12 +201,10 @@ func (n *NginxDriver) Test() error {
 
 // Reload reloads nginx to apply changes
 func (n *NginxDriver) Reload() error {
-	cmd := exec.Command("systemctl", "reload", "nginx")
-	output, err := cmd.CombinedOutput()
+	output, err := n.exec.Execute("systemctl", "reload", "nginx")
 	if err != nil {
 		// Try nginx -s reload as fallback
-		cmd = exec.Command("nginx", "-s", "reload")
-		output, err = cmd.CombinedOutput()
+		output, err = n.exec.Execute("nginx", "-s", "reload")
 		if err != nil {
 			return fmt.Errorf("failed to reload nginx: %s", string(output))
 		}

@@ -2,9 +2,10 @@ package ssl
 
 import (
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/ksyq12/vhost/internal/executor"
 )
 
 // Cert represents an SSL certificate
@@ -17,9 +18,22 @@ type Cert struct {
 // letsencryptDir is the base directory for Let's Encrypt certificates
 const letsencryptDir = "/etc/letsencrypt/live"
 
+// cmdExecutor is the command executor (can be replaced for testing)
+var cmdExecutor executor.CommandExecutor = executor.NewSystemExecutor()
+
+// SetExecutor allows tests to inject a mock executor
+func SetExecutor(exec executor.CommandExecutor) {
+	cmdExecutor = exec
+}
+
+// ResetExecutor resets the executor to the default system executor
+func ResetExecutor() {
+	cmdExecutor = executor.NewSystemExecutor()
+}
+
 // IsInstalled checks if certbot is installed
 func IsInstalled() bool {
-	_, err := exec.LookPath("certbot")
+	_, err := cmdExecutor.LookPath("certbot")
 	return err == nil
 }
 
@@ -29,8 +43,7 @@ func runCertbot(args []string) error {
 		return fmt.Errorf("certbot is not installed. Install it with: apt install certbot")
 	}
 
-	cmd := exec.Command("certbot", args...)
-	output, err := cmd.CombinedOutput()
+	output, err := cmdExecutor.Execute("certbot", args...)
 	if err != nil {
 		return fmt.Errorf("certbot failed: %s", string(output))
 	}
@@ -132,8 +145,7 @@ func List() ([]string, error) {
 		return nil, fmt.Errorf("certbot is not installed")
 	}
 
-	cmd := exec.Command("certbot", "certificates")
-	output, err := cmd.CombinedOutput()
+	output, err := cmdExecutor.Execute("certbot", "certificates")
 	if err != nil {
 		return nil, fmt.Errorf("certbot certificates failed: %s", string(output))
 	}

@@ -1,11 +1,13 @@
 package driver
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/ksyq12/vhost/internal/config"
+	"github.com/ksyq12/vhost/internal/executor"
 )
 
 func TestCaddyDriver(t *testing.T) {
@@ -187,4 +189,111 @@ func TestCaddyDriverListFiltersCorrectly(t *testing.T) {
 	if len(domains) != 2 {
 		t.Errorf("expected 2 domains, got %d: %v", len(domains), domains)
 	}
+}
+
+func TestCaddyDriver_WithExecutor(t *testing.T) {
+	tempDir := t.TempDir()
+	availableDir := filepath.Join(tempDir, "sites-available")
+	enabledDir := filepath.Join(tempDir, "sites-enabled")
+
+	os.MkdirAll(availableDir, 0755)
+	os.MkdirAll(enabledDir, 0755)
+
+	t.Run("Test_success", func(t *testing.T) {
+		mock := &executor.MockExecutor{
+			ExecuteFunc: func(name string, args ...string) ([]byte, error) {
+				if name == "caddy" && len(args) > 0 && args[0] == "validate" {
+					return []byte("Valid configuration"), nil
+				}
+				return nil, errors.New("unexpected command")
+			},
+		}
+
+		drv := NewCaddyWithExecutor(availableDir, enabledDir, mock)
+		err := drv.Test()
+		if err != nil {
+			t.Errorf("Test should succeed: %v", err)
+		}
+
+		// Verify the correct command was called
+		if len(mock.Calls) != 1 {
+			t.Errorf("expected 1 call, got %d", len(mock.Calls))
+		}
+		if mock.Calls[0].Name != "caddy" || mock.Calls[0].Args[0] != "validate" {
+			t.Errorf("expected caddy validate, got %s %v", mock.Calls[0].Name, mock.Calls[0].Args)
+		}
+	})
+
+	t.Run("Test_failure", func(t *testing.T) {
+		mock := &executor.MockExecutor{
+			ExecuteFunc: func(name string, args ...string) ([]byte, error) {
+				return []byte("Error: invalid config"), errors.New("exit status 1")
+			},
+		}
+
+		drv := NewCaddyWithExecutor(availableDir, enabledDir, mock)
+		err := drv.Test()
+		if err == nil {
+			t.Error("Test should fail for invalid config")
+		}
+	})
+
+	t.Run("Reload_systemctl_success", func(t *testing.T) {
+		mock := &executor.MockExecutor{
+			ExecuteFunc: func(name string, args ...string) ([]byte, error) {
+				if name == "systemctl" && len(args) >= 2 && args[0] == "reload" && args[1] == "caddy" {
+					return []byte(""), nil
+				}
+				return nil, errors.New("unexpected command")
+			},
+		}
+
+		drv := NewCaddyWithExecutor(availableDir, enabledDir, mock)
+		err := drv.Reload()
+		if err != nil {
+			t.Errorf("Reload should succeed: %v", err)
+		}
+	})
+
+	t.Run("Reload_fallback_success", func(t *testing.T) {
+		callCount := 0
+		mock := &executor.MockExecutor{
+			ExecuteFunc: func(name string, args ...string) ([]byte, error) {
+				callCount++
+				if callCount == 1 {
+					// First call: systemctl fails
+					return []byte("systemctl not available"), errors.New("systemctl not found")
+				}
+				// Second call: caddy reload succeeds
+				if name == "caddy" && len(args) > 0 && args[0] == "reload" {
+					return []byte(""), nil
+				}
+				return nil, errors.New("unexpected command")
+			},
+		}
+
+		drv := NewCaddyWithExecutor(availableDir, enabledDir, mock)
+		err := drv.Reload()
+		if err != nil {
+			t.Errorf("Reload should succeed with fallback: %v", err)
+		}
+
+		if callCount != 2 {
+			t.Errorf("expected 2 calls, got %d", callCount)
+		}
+	})
+
+	t.Run("Reload_both_fail", func(t *testing.T) {
+		mock := &executor.MockExecutor{
+			ExecuteFunc: func(name string, args ...string) ([]byte, error) {
+				return []byte("error"), errors.New("command failed")
+			},
+		}
+
+		drv := NewCaddyWithExecutor(availableDir, enabledDir, mock)
+		err := drv.Reload()
+		if err == nil {
+			t.Error("Reload should fail when both methods fail")
+		}
+	})
 }

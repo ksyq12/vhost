@@ -3,16 +3,17 @@ package driver
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/ksyq12/vhost/internal/config"
+	"github.com/ksyq12/vhost/internal/executor"
 )
 
 // CaddyDriver implements the Driver interface for Caddy
 type CaddyDriver struct {
 	paths Paths
+	exec  executor.CommandExecutor
 }
 
 // NewCaddy creates a new Caddy driver with default paths
@@ -22,6 +23,7 @@ func NewCaddy() *CaddyDriver {
 			Available: "/etc/caddy/sites-available",
 			Enabled:   "/etc/caddy/sites-enabled",
 		},
+		exec: executor.NewSystemExecutor(),
 	}
 }
 
@@ -32,6 +34,18 @@ func NewCaddyWithPaths(available, enabled string) *CaddyDriver {
 			Available: available,
 			Enabled:   enabled,
 		},
+		exec: executor.NewSystemExecutor(),
+	}
+}
+
+// NewCaddyWithExecutor creates a new Caddy driver with custom paths and executor (for testing)
+func NewCaddyWithExecutor(available, enabled string, exec executor.CommandExecutor) *CaddyDriver {
+	return &CaddyDriver{
+		paths: Paths{
+			Available: available,
+			Enabled:   enabled,
+		},
+		exec: exec,
 	}
 }
 
@@ -178,8 +192,7 @@ func (c *CaddyDriver) IsEnabled(domain string) (bool, error) {
 
 // Test validates the caddy config syntax
 func (c *CaddyDriver) Test() error {
-	cmd := exec.Command("caddy", "validate", "--config", "/etc/caddy/Caddyfile")
-	output, err := cmd.CombinedOutput()
+	output, err := c.exec.Execute("caddy", "validate", "--config", "/etc/caddy/Caddyfile")
 	if err != nil {
 		return fmt.Errorf("caddy config test failed: %s", string(output))
 	}
@@ -188,12 +201,10 @@ func (c *CaddyDriver) Test() error {
 
 // Reload reloads caddy to apply changes
 func (c *CaddyDriver) Reload() error {
-	cmd := exec.Command("systemctl", "reload", "caddy")
-	output, err := cmd.CombinedOutput()
+	output, err := c.exec.Execute("systemctl", "reload", "caddy")
 	if err != nil {
 		// Try caddy reload as fallback
-		cmd = exec.Command("caddy", "reload", "--config", "/etc/caddy/Caddyfile")
-		output, err = cmd.CombinedOutput()
+		output, err = c.exec.Execute("caddy", "reload", "--config", "/etc/caddy/Caddyfile")
 		if err != nil {
 			return fmt.Errorf("failed to reload caddy: %s", string(output))
 		}

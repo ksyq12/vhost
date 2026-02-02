@@ -1,11 +1,13 @@
 package driver
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/ksyq12/vhost/internal/config"
+	"github.com/ksyq12/vhost/internal/executor"
 )
 
 func TestApacheDriver(t *testing.T) {
@@ -195,4 +197,111 @@ func TestApacheDriverListFiltersCorrectly(t *testing.T) {
 			t.Errorf("domain should not have .conf extension: %s", d)
 		}
 	}
+}
+
+func TestApacheDriver_WithExecutor(t *testing.T) {
+	tempDir := t.TempDir()
+	availableDir := filepath.Join(tempDir, "sites-available")
+	enabledDir := filepath.Join(tempDir, "sites-enabled")
+
+	os.MkdirAll(availableDir, 0755)
+	os.MkdirAll(enabledDir, 0755)
+
+	t.Run("Test_success", func(t *testing.T) {
+		mock := &executor.MockExecutor{
+			ExecuteFunc: func(name string, args ...string) ([]byte, error) {
+				if name == "apache2ctl" && len(args) > 0 && args[0] == "configtest" {
+					return []byte("Syntax OK"), nil
+				}
+				return nil, errors.New("unexpected command")
+			},
+		}
+
+		drv := NewApacheWithExecutor(availableDir, enabledDir, mock)
+		err := drv.Test()
+		if err != nil {
+			t.Errorf("Test should succeed: %v", err)
+		}
+
+		// Verify the correct command was called
+		if len(mock.Calls) != 1 {
+			t.Errorf("expected 1 call, got %d", len(mock.Calls))
+		}
+		if mock.Calls[0].Name != "apache2ctl" || mock.Calls[0].Args[0] != "configtest" {
+			t.Errorf("expected apache2ctl configtest, got %s %v", mock.Calls[0].Name, mock.Calls[0].Args)
+		}
+	})
+
+	t.Run("Test_failure", func(t *testing.T) {
+		mock := &executor.MockExecutor{
+			ExecuteFunc: func(name string, args ...string) ([]byte, error) {
+				return []byte("Syntax error on line 10"), errors.New("exit status 1")
+			},
+		}
+
+		drv := NewApacheWithExecutor(availableDir, enabledDir, mock)
+		err := drv.Test()
+		if err == nil {
+			t.Error("Test should fail for invalid config")
+		}
+	})
+
+	t.Run("Reload_systemctl_success", func(t *testing.T) {
+		mock := &executor.MockExecutor{
+			ExecuteFunc: func(name string, args ...string) ([]byte, error) {
+				if name == "systemctl" && len(args) >= 2 && args[0] == "reload" && args[1] == "apache2" {
+					return []byte(""), nil
+				}
+				return nil, errors.New("unexpected command")
+			},
+		}
+
+		drv := NewApacheWithExecutor(availableDir, enabledDir, mock)
+		err := drv.Reload()
+		if err != nil {
+			t.Errorf("Reload should succeed: %v", err)
+		}
+	})
+
+	t.Run("Reload_fallback_success", func(t *testing.T) {
+		callCount := 0
+		mock := &executor.MockExecutor{
+			ExecuteFunc: func(name string, args ...string) ([]byte, error) {
+				callCount++
+				if callCount == 1 {
+					// First call: systemctl fails
+					return []byte("systemctl not available"), errors.New("systemctl not found")
+				}
+				// Second call: apache2ctl graceful succeeds
+				if name == "apache2ctl" && len(args) > 0 && args[0] == "graceful" {
+					return []byte(""), nil
+				}
+				return nil, errors.New("unexpected command")
+			},
+		}
+
+		drv := NewApacheWithExecutor(availableDir, enabledDir, mock)
+		err := drv.Reload()
+		if err != nil {
+			t.Errorf("Reload should succeed with fallback: %v", err)
+		}
+
+		if callCount != 2 {
+			t.Errorf("expected 2 calls, got %d", callCount)
+		}
+	})
+
+	t.Run("Reload_both_fail", func(t *testing.T) {
+		mock := &executor.MockExecutor{
+			ExecuteFunc: func(name string, args ...string) ([]byte, error) {
+				return []byte("error"), errors.New("command failed")
+			},
+		}
+
+		drv := NewApacheWithExecutor(availableDir, enabledDir, mock)
+		err := drv.Reload()
+		if err == nil {
+			t.Error("Reload should fail when both methods fail")
+		}
+	})
 }
