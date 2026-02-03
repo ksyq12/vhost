@@ -208,8 +208,12 @@ func TestCaddyDriver_WithExecutor(t *testing.T) {
 	availableDir := filepath.Join(tempDir, "sites-available")
 	enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-	os.MkdirAll(availableDir, 0755)
-	os.MkdirAll(enabledDir, 0755)
+	if err := os.MkdirAll(availableDir, 0755); err != nil {
+		t.Fatalf("failed to create available dir: %v", err)
+	}
+	if err := os.MkdirAll(enabledDir, 0755); err != nil {
+		t.Fatalf("failed to create enabled dir: %v", err)
+	}
 
 	t.Run("Test_success", func(t *testing.T) {
 		mock := &executor.MockExecutor{

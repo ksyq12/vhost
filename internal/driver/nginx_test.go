@@ -169,8 +169,12 @@ func TestNginxDriver_WithExecutor(t *testing.T) {
 	availableDir := filepath.Join(tempDir, "sites-available")
 	enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-	os.MkdirAll(availableDir, 0755)
-	os.MkdirAll(enabledDir, 0755)
+	if err := os.MkdirAll(availableDir, 0755); err != nil {
+		t.Fatalf("failed to create available dir: %v", err)
+	}
+	if err := os.MkdirAll(enabledDir, 0755); err != nil {
+		t.Fatalf("failed to create enabled dir: %v", err)
+	}
 
 	t.Run("Test_success", func(t *testing.T) {
 		mock := &executor.MockExecutor{
@@ -277,14 +281,20 @@ func TestNginxDriver_EdgeCases(t *testing.T) {
 		availableDir := filepath.Join(tempDir, "sites-available")
 		enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-		os.MkdirAll(availableDir, 0755)
-		os.MkdirAll(enabledDir, 0755)
+		if err := os.MkdirAll(availableDir, 0755); err != nil {
+			t.Fatalf("failed to create available dir: %v", err)
+		}
+		if err := os.MkdirAll(enabledDir, 0755); err != nil {
+			t.Fatalf("failed to create enabled dir: %v", err)
+		}
 
 		drv := NewNginxWithPaths(availableDir, enabledDir)
 		domain := "test.com"
 
 		// Create config file
-		os.WriteFile(filepath.Join(availableDir, domain), []byte("config"), 0644)
+		if err := os.WriteFile(filepath.Join(availableDir, domain), []byte("config"), 0644); err != nil {
+			t.Fatalf("failed to create config file: %v", err)
+		}
 
 		// Enable once
 		if err := drv.Enable(domain); err != nil {
@@ -303,8 +313,12 @@ func TestNginxDriver_EdgeCases(t *testing.T) {
 		availableDir := filepath.Join(tempDir, "sites-available")
 		enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-		os.MkdirAll(availableDir, 0755)
-		os.MkdirAll(enabledDir, 0755)
+		if err := os.MkdirAll(availableDir, 0755); err != nil {
+			t.Fatalf("failed to create available dir: %v", err)
+		}
+		if err := os.MkdirAll(enabledDir, 0755); err != nil {
+			t.Fatalf("failed to create enabled dir: %v", err)
+		}
 
 		drv := NewNginxWithPaths(availableDir, enabledDir)
 
@@ -319,12 +333,18 @@ func TestNginxDriver_EdgeCases(t *testing.T) {
 		availableDir := filepath.Join(tempDir, "sites-available")
 		enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-		os.MkdirAll(availableDir, 0755)
-		os.MkdirAll(enabledDir, 0755)
+		if err := os.MkdirAll(availableDir, 0755); err != nil {
+			t.Fatalf("failed to create available dir: %v", err)
+		}
+		if err := os.MkdirAll(enabledDir, 0755); err != nil {
+			t.Fatalf("failed to create enabled dir: %v", err)
+		}
 
 		domain := "test.com"
 		// Create regular file (not symlink) in enabled dir
-		os.WriteFile(filepath.Join(enabledDir, domain), []byte("config"), 0644)
+		if err := os.WriteFile(filepath.Join(enabledDir, domain), []byte("config"), 0644); err != nil {
+			t.Fatalf("failed to create config file: %v", err)
+		}
 
 		drv := NewNginxWithPaths(availableDir, enabledDir)
 
@@ -390,12 +410,20 @@ func TestNginxDriver_EdgeCases(t *testing.T) {
 		availableDir := filepath.Join(tempDir, "sites-available")
 		enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-		os.MkdirAll(availableDir, 0755)
-		os.MkdirAll(enabledDir, 0755)
+		if err := os.MkdirAll(availableDir, 0755); err != nil {
+			t.Fatalf("failed to create available dir: %v", err)
+		}
+		if err := os.MkdirAll(enabledDir, 0755); err != nil {
+			t.Fatalf("failed to create enabled dir: %v", err)
+		}
 
 		// Create normal file and hidden file
-		os.WriteFile(filepath.Join(availableDir, "test.com"), []byte("config"), 0644)
-		os.WriteFile(filepath.Join(availableDir, ".hidden"), []byte("config"), 0644)
+		if err := os.WriteFile(filepath.Join(availableDir, "test.com"), []byte("config"), 0644); err != nil {
+			t.Fatalf("failed to create config file: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(availableDir, ".hidden"), []byte("config"), 0644); err != nil {
+			t.Fatalf("failed to create hidden file: %v", err)
+		}
 
 		drv := NewNginxWithPaths(availableDir, enabledDir)
 
