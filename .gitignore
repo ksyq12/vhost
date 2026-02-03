@@ -6,6 +6,7 @@ dist/
 # Test coverage
 coverage.out
 coverage.html
+coverage_all.out
 
 # IDE
 .idea/
