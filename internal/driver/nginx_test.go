@@ -359,8 +359,12 @@ func TestNginxDriver_EdgeCases(t *testing.T) {
 		availableDir := filepath.Join(tempDir, "sites-available")
 		enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-		os.MkdirAll(availableDir, 0755)
-		os.MkdirAll(enabledDir, 0755)
+		if err := os.MkdirAll(availableDir, 0755); err != nil {
+			t.Fatalf("failed to create available dir: %v", err)
+		}
+		if err := os.MkdirAll(enabledDir, 0755); err != nil {
+			t.Fatalf("failed to create enabled dir: %v", err)
+		}
 
 		drv := NewNginxWithPaths(availableDir, enabledDir)
 
@@ -375,8 +379,12 @@ func TestNginxDriver_EdgeCases(t *testing.T) {
 		availableDir := filepath.Join(tempDir, "sites-available")
 		enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-		os.MkdirAll(availableDir, 0755)
-		os.MkdirAll(enabledDir, 0755)
+		if err := os.MkdirAll(availableDir, 0755); err != nil {
+			t.Fatalf("failed to create available dir: %v", err)
+		}
+		if err := os.MkdirAll(enabledDir, 0755); err != nil {
+			t.Fatalf("failed to create enabled dir: %v", err)
+		}
 
 		drv := NewNginxWithPaths(availableDir, enabledDir)
 
@@ -444,12 +452,20 @@ func TestNginxDriver_EdgeCases(t *testing.T) {
 		availableDir := filepath.Join(tempDir, "sites-available")
 		enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-		os.MkdirAll(availableDir, 0755)
-		os.MkdirAll(enabledDir, 0755)
+		if err := os.MkdirAll(availableDir, 0755); err != nil {
+			t.Fatalf("failed to create available dir: %v", err)
+		}
+		if err := os.MkdirAll(enabledDir, 0755); err != nil {
+			t.Fatalf("failed to create enabled dir: %v", err)
+		}
 
 		// Create normal file and directory
-		os.WriteFile(filepath.Join(availableDir, "test.com"), []byte("config"), 0644)
-		os.MkdirAll(filepath.Join(availableDir, "subdir"), 0755)
+		if err := os.WriteFile(filepath.Join(availableDir, "test.com"), []byte("config"), 0644); err != nil {
+			t.Fatalf("failed to create config file: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Join(availableDir, "subdir"), 0755); err != nil {
+			t.Fatalf("failed to create subdir: %v", err)
+		}
 
 		drv := NewNginxWithPaths(availableDir, enabledDir)
 
