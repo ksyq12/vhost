@@ -169,16 +169,28 @@ func TestCaddyDriverListFiltersCorrectly(t *testing.T) {
 	availableDir := filepath.Join(tempDir, "sites-available")
 	enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-	os.MkdirAll(availableDir, 0755)
-	os.MkdirAll(enabledDir, 0755)
+	if err := os.MkdirAll(availableDir, 0755); err != nil {
+		t.Fatalf("failed to create available dir: %v", err)
+	}
+	if err := os.MkdirAll(enabledDir, 0755); err != nil {
+		t.Fatalf("failed to create enabled dir: %v", err)
+	}
 
 	drv := NewCaddyWithPaths(availableDir, enabledDir)
 
 	// Create various files
-	os.WriteFile(filepath.Join(availableDir, "example.com"), []byte("config"), 0644)
-	os.WriteFile(filepath.Join(availableDir, "test.org"), []byte("config"), 0644)
-	os.WriteFile(filepath.Join(availableDir, ".hidden"), []byte("config"), 0644) // hidden file
-	os.MkdirAll(filepath.Join(availableDir, "directory"), 0755)                  // directory
+	if err := os.WriteFile(filepath.Join(availableDir, "example.com"), []byte("config"), 0644); err != nil {
+		t.Fatalf("failed to write example.com: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(availableDir, "test.org"), []byte("config"), 0644); err != nil {
+		t.Fatalf("failed to write test.org: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(availableDir, ".hidden"), []byte("config"), 0644); err != nil { // hidden file
+		t.Fatalf("failed to write .hidden: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(availableDir, "directory"), 0755); err != nil { // directory
+		t.Fatalf("failed to create directory: %v", err)
+	}
 
 	domains, err := drv.List()
 	if err != nil {

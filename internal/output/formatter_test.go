@@ -108,7 +108,7 @@ func TestJSON(t *testing.T) {
 		data := map[string]interface{}{}
 
 		output := captureStdout(func() {
-			JSON(data)
+			_ = JSON(data)
 		})
 
 		if !strings.Contains(output, "{}") {
