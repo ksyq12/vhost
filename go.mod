@@ -1,6 +1,6 @@
 module github.com/ksyq12/vhost
 
-go 1.25.6
+go 1.23
 
 require (
 	github.com/fatih/color v1.18.0

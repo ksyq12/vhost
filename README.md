@@ -1,6 +1,6 @@
 # vhost
 
-[![Go Version](https://img.shields.io/badge/Go-1.25.6-00ADD8?style=flat&logo=go)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/Go-1.23-00ADD8?style=flat&logo=go)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A powerful CLI tool for managing virtual hosts with ease. Supports **Nginx**, **Apache**, and **Caddy** web servers. Create, configure, and manage virtual hosts for static sites, PHP applications, Laravel, WordPress, and reverse proxies with a single command.
@@ -19,7 +19,7 @@ A powerful CLI tool for managing virtual hosts with ease. Supports **Nginx**, **
 
 - **Web Server**: Nginx, Apache, or Caddy installed and running
 - **Root/sudo access** for modifying web server configurations
-- **Go 1.25.6+** (for building from source)
+- **Go 1.23+** (for building from source)
 - **PHP-FPM** (optional, for PHP/Laravel/WordPress sites)
 - **Certbot** (optional, for SSL certificate management)
 
