@@ -3,7 +3,6 @@ package cli
 import (
 	"bufio"
 	"os"
-	"os/exec"
 
 	"github.com/ksyq12/vhost/internal/config"
 	"github.com/ksyq12/vhost/internal/driver"
@@ -113,23 +112,4 @@ type CommandRunner interface {
 	Run(name string, args ...string) error
 	RunInteractive(name string, args ...string) error
 	LookPath(file string) (string, error)
-}
-
-type realCommandRunner struct{}
-
-func (r *realCommandRunner) Run(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	return cmd.Run()
-}
-
-func (r *realCommandRunner) RunInteractive(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-func (r *realCommandRunner) LookPath(file string) (string, error) {
-	return exec.LookPath(file)
 }

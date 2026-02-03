@@ -13,11 +13,11 @@ import (
 
 func TestCheckSystemRequirements(t *testing.T) {
 	tests := []struct {
-		name           string
-		driverName     string
-		setupExecutor  func() *executor.MockExecutor
-		setupConfig    func() *config.Config
-		checkResults   func(*testing.T, []CheckResult)
+		name          string
+		driverName    string
+		setupExecutor func() *executor.MockExecutor
+		setupConfig   func() *config.Config
+		checkResults  func(*testing.T, []CheckResult)
 	}{
 		{
 			name:       "all requirements satisfied",

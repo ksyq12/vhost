@@ -222,7 +222,10 @@ func (b *MockDependenciesBuilder) Build() *Dependencies {
 
 // TestHelper provides utilities for CLI tests
 type TestHelper struct {
-	T          interface{ Helper(); Cleanup(func()) }
+	T interface {
+		Helper()
+		Cleanup(func())
+	}
 	OldDeps    *Dependencies
 	MockDriver *driver.MockDriver
 	MockConfig *MockConfigLoader

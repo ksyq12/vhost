@@ -13,12 +13,12 @@ import (
 func TestRunEdit(t *testing.T) {
 	// Set EDITOR to a non-existent command to prevent actual editor execution
 	originalEditor := os.Getenv("EDITOR")
-	os.Setenv("EDITOR", "/nonexistent/editor/for/testing")
+	_ = os.Setenv("EDITOR", "/nonexistent/editor/for/testing")
 	defer func() {
 		if originalEditor != "" {
-			os.Setenv("EDITOR", originalEditor)
+			_ = os.Setenv("EDITOR", originalEditor)
 		} else {
-			os.Unsetenv("EDITOR")
+			_ = os.Unsetenv("EDITOR")
 		}
 	}()
 
@@ -178,17 +178,17 @@ func TestGetEditor(t *testing.T) {
 			original := os.Getenv("EDITOR")
 			defer func() {
 				if original != "" {
-					os.Setenv("EDITOR", original)
+					_ = os.Setenv("EDITOR", original)
 				} else {
-					os.Unsetenv("EDITOR")
+					_ = os.Unsetenv("EDITOR")
 				}
 			}()
 
 			// Set test value
 			if tt.envValue != "" {
-				os.Setenv("EDITOR", tt.envValue)
+				_ = os.Setenv("EDITOR", tt.envValue)
 			} else {
-				os.Unsetenv("EDITOR")
+				_ = os.Unsetenv("EDITOR")
 			}
 
 			result := getEditor()
