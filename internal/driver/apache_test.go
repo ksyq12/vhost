@@ -169,17 +169,31 @@ func TestApacheDriverListFiltersCorrectly(t *testing.T) {
 	availableDir := filepath.Join(tempDir, "sites-available")
 	enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-	os.MkdirAll(availableDir, 0755)
-	os.MkdirAll(enabledDir, 0755)
+	if err := os.MkdirAll(availableDir, 0755); err != nil {
+		t.Fatalf("failed to create sites-available: %v", err)
+	}
+	if err := os.MkdirAll(enabledDir, 0755); err != nil {
+		t.Fatalf("failed to create sites-enabled: %v", err)
+	}
 
 	drv := NewApacheWithPaths(availableDir, enabledDir)
 
 	// Create various files
-	os.WriteFile(filepath.Join(availableDir, "example.com.conf"), []byte("config"), 0644)
-	os.WriteFile(filepath.Join(availableDir, "test.org.conf"), []byte("config"), 0644)
-	os.WriteFile(filepath.Join(availableDir, ".hidden.conf"), []byte("config"), 0644) // hidden file
-	os.WriteFile(filepath.Join(availableDir, "noextension"), []byte("config"), 0644)  // no .conf
-	os.MkdirAll(filepath.Join(availableDir, "directory.conf"), 0755)                  // directory
+	if err := os.WriteFile(filepath.Join(availableDir, "example.com.conf"), []byte("config"), 0644); err != nil {
+		t.Fatalf("failed to write example.com.conf: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(availableDir, "test.org.conf"), []byte("config"), 0644); err != nil {
+		t.Fatalf("failed to write test.org.conf: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(availableDir, ".hidden.conf"), []byte("config"), 0644); err != nil { // hidden file
+		t.Fatalf("failed to write .hidden.conf: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(availableDir, "noextension"), []byte("config"), 0644); err != nil { // no .conf
+		t.Fatalf("failed to write noextension: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(availableDir, "directory.conf"), 0755); err != nil { // directory
+		t.Fatalf("failed to create directory.conf: %v", err)
+	}
 
 	domains, err := drv.List()
 	if err != nil {
@@ -204,8 +218,12 @@ func TestApacheDriver_WithExecutor(t *testing.T) {
 	availableDir := filepath.Join(tempDir, "sites-available")
 	enabledDir := filepath.Join(tempDir, "sites-enabled")
 
-	os.MkdirAll(availableDir, 0755)
-	os.MkdirAll(enabledDir, 0755)
+	if err := os.MkdirAll(availableDir, 0755); err != nil {
+		t.Fatalf("failed to create sites-available: %v", err)
+	}
+	if err := os.MkdirAll(enabledDir, 0755); err != nil {
+		t.Fatalf("failed to create sites-enabled: %v", err)
+	}
 
 	t.Run("Test_success", func(t *testing.T) {
 		mock := &executor.MockExecutor{

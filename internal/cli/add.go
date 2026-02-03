@@ -113,7 +113,7 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	output.Info("Enabling site...")
 	if err := drv.Enable(domain); err != nil {
 		// Rollback: remove config file
-		drv.Remove(domain)
+		_ = drv.Remove(domain)
 		return fmt.Errorf("failed to enable vhost: %w", err)
 	}
 

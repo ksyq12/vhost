@@ -283,12 +283,10 @@ func checkVHosts(drv driver.Driver, cfg *config.Config) []VHostStatus {
 		}
 
 		// Build status message
-		var checkMessages []string
 		allOK := true
 
 		// Check if enabled status matches config
 		if status.Enabled != vhost.Enabled {
-			checkMessages = append(checkMessages, fmt.Sprintf("enabled mismatch (config: %v, actual: %v)", vhost.Enabled, status.Enabled))
 			status.Checks = append(status.Checks, CheckResult{
 				Status:  "warning",
 				Message: "enabled status mismatch",
@@ -299,7 +297,6 @@ func checkVHosts(drv driver.Driver, cfg *config.Config) []VHostStatus {
 		// Check root directory exists (if applicable)
 		if vhost.Root != "" {
 			if _, err := os.Stat(vhost.Root); os.IsNotExist(err) {
-				checkMessages = append(checkMessages, "root directory missing")
 				status.Checks = append(status.Checks, CheckResult{
 					Status:  "warning",
 					Message: "root directory missing",
@@ -312,7 +309,6 @@ func checkVHosts(drv driver.Driver, cfg *config.Config) []VHostStatus {
 		if vhost.SSL {
 			if vhost.SSLCert != "" {
 				if _, err := os.Stat(vhost.SSLCert); os.IsNotExist(err) {
-					checkMessages = append(checkMessages, "SSL certificate missing")
 					status.Checks = append(status.Checks, CheckResult{
 						Status:  "error",
 						Message: "SSL certificate missing",
@@ -322,7 +318,6 @@ func checkVHosts(drv driver.Driver, cfg *config.Config) []VHostStatus {
 			}
 			if vhost.SSLKey != "" {
 				if _, err := os.Stat(vhost.SSLKey); os.IsNotExist(err) {
-					checkMessages = append(checkMessages, "SSL key missing")
 					status.Checks = append(status.Checks, CheckResult{
 						Status:  "error",
 						Message: "SSL key missing",

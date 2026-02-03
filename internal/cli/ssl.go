@@ -57,7 +57,7 @@ var (
 
 func init() {
 	sslInstallCmd.Flags().StringVarP(&sslEmail, "email", "e", "", "Email address for Let's Encrypt (required)")
-	sslInstallCmd.MarkFlagRequired("email")
+	_ = sslInstallCmd.MarkFlagRequired("email")
 
 	sslRenewCmd.Flags().BoolVar(&renewAll, "all", false, "Renew all certificates")
 

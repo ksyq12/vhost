@@ -201,10 +201,10 @@ func (n *NginxDriver) Test() error {
 
 // Reload reloads nginx to apply changes
 func (n *NginxDriver) Reload() error {
-	output, err := n.exec.Execute("systemctl", "reload", "nginx")
+	_, err := n.exec.Execute("systemctl", "reload", "nginx")
 	if err != nil {
 		// Try nginx -s reload as fallback
-		output, err = n.exec.Execute("nginx", "-s", "reload")
+		output, err := n.exec.Execute("nginx", "-s", "reload")
 		if err != nil {
 			return fmt.Errorf("failed to reload nginx: %s", string(output))
 		}

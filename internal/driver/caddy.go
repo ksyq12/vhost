@@ -201,10 +201,10 @@ func (c *CaddyDriver) Test() error {
 
 // Reload reloads caddy to apply changes
 func (c *CaddyDriver) Reload() error {
-	output, err := c.exec.Execute("systemctl", "reload", "caddy")
+	_, err := c.exec.Execute("systemctl", "reload", "caddy")
 	if err != nil {
 		// Try caddy reload as fallback
-		output, err = c.exec.Execute("caddy", "reload", "--config", "/etc/caddy/Caddyfile")
+		output, err := c.exec.Execute("caddy", "reload", "--config", "/etc/caddy/Caddyfile")
 		if err != nil {
 			return fmt.Errorf("failed to reload caddy: %s", string(output))
 		}

@@ -32,7 +32,7 @@ func captureStdout(f func()) string {
 	color.Output = os.Stdout
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	return buf.String()
 }
 
@@ -44,7 +44,7 @@ func TestJSON(t *testing.T) {
 		}
 
 		output := captureStdout(func() {
-			JSON(data)
+			_ = JSON(data)
 		})
 
 		var result map[string]interface{}
@@ -69,7 +69,7 @@ func TestJSON(t *testing.T) {
 		data := TestStruct{Name: "test", Value: 42}
 
 		output := captureStdout(func() {
-			JSON(data)
+			_ = JSON(data)
 		})
 
 		var result TestStruct
@@ -90,7 +90,7 @@ func TestJSON(t *testing.T) {
 		data := []string{"example.com", "test.com"}
 
 		output := captureStdout(func() {
-			JSON(data)
+			_ = JSON(data)
 		})
 
 		var result []string

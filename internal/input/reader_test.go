@@ -76,7 +76,7 @@ func TestStringReader_ReadString(t *testing.T) {
 func TestNewStdinReader(t *testing.T) {
 	reader := NewStdinReader()
 	if reader == nil {
-		t.Error("expected non-nil reader")
+		t.Fatal("expected non-nil reader")
 	}
 	if reader.reader == nil {
 		t.Error("expected non-nil bufio.Reader")

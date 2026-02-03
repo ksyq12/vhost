@@ -210,10 +210,10 @@ func (a *ApacheDriver) Test() error {
 
 // Reload reloads apache to apply changes
 func (a *ApacheDriver) Reload() error {
-	output, err := a.exec.Execute("systemctl", "reload", "apache2")
+	_, err := a.exec.Execute("systemctl", "reload", "apache2")
 	if err != nil {
 		// Try apache2ctl graceful as fallback
-		output, err = a.exec.Execute("apache2ctl", "graceful")
+		output, err := a.exec.Execute("apache2ctl", "graceful")
 		if err != nil {
 			return fmt.Errorf("failed to reload apache: %s", string(output))
 		}
