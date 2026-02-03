@@ -51,9 +51,9 @@ type VHostStatus struct {
 
 // DoctorReport contains all diagnostic results
 type DoctorReport struct {
-	SystemRequirements []CheckResult  `json:"system_requirements"`
-	Configuration      []CheckResult  `json:"configuration"`
-	VHosts             []VHostStatus  `json:"vhosts"`
+	SystemRequirements []CheckResult `json:"system_requirements"`
+	Configuration      []CheckResult `json:"configuration"`
+	VHosts             []VHostStatus `json:"vhosts"`
 }
 
 func runDoctor(cmd *cobra.Command, args []string) error {
@@ -99,10 +99,10 @@ func checkSystemRequirements(exec executor.CommandExecutor, cfg *config.Config) 
 
 	// Check web servers
 	webServers := []struct {
-		name     string
-		binary   string
+		name        string
+		binary      string
 		versionFlag string
-		optional bool
+		optional    bool
 	}{
 		{"Nginx", "nginx", "-v", cfg.Driver != "nginx"},
 		{"Apache", "apache2", "-v", cfg.Driver != "apache"},

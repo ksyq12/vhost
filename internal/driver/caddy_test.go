@@ -177,8 +177,8 @@ func TestCaddyDriverListFiltersCorrectly(t *testing.T) {
 	// Create various files
 	os.WriteFile(filepath.Join(availableDir, "example.com"), []byte("config"), 0644)
 	os.WriteFile(filepath.Join(availableDir, "test.org"), []byte("config"), 0644)
-	os.WriteFile(filepath.Join(availableDir, ".hidden"), []byte("config"), 0644)    // hidden file
-	os.MkdirAll(filepath.Join(availableDir, "directory"), 0755)                     // directory
+	os.WriteFile(filepath.Join(availableDir, ".hidden"), []byte("config"), 0644) // hidden file
+	os.MkdirAll(filepath.Join(availableDir, "directory"), 0755)                  // directory
 
 	domains, err := drv.List()
 	if err != nil {

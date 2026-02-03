@@ -177,9 +177,9 @@ func TestApacheDriverListFiltersCorrectly(t *testing.T) {
 	// Create various files
 	os.WriteFile(filepath.Join(availableDir, "example.com.conf"), []byte("config"), 0644)
 	os.WriteFile(filepath.Join(availableDir, "test.org.conf"), []byte("config"), 0644)
-	os.WriteFile(filepath.Join(availableDir, ".hidden.conf"), []byte("config"), 0644)   // hidden file
-	os.WriteFile(filepath.Join(availableDir, "noextension"), []byte("config"), 0644)    // no .conf
-	os.MkdirAll(filepath.Join(availableDir, "directory.conf"), 0755)                    // directory
+	os.WriteFile(filepath.Join(availableDir, ".hidden.conf"), []byte("config"), 0644) // hidden file
+	os.WriteFile(filepath.Join(availableDir, "noextension"), []byte("config"), 0644)  // no .conf
+	os.MkdirAll(filepath.Join(availableDir, "directory.conf"), 0755)                  // directory
 
 	domains, err := drv.List()
 	if err != nil {
