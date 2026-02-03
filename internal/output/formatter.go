@@ -72,22 +72,22 @@ func Table(headers []string, rows [][]string) {
 
 // Success prints a success message
 func Success(format string, args ...interface{}) {
-	successColor.Printf("✓ "+format+"\n", args...)
+	_, _ = successColor.Printf("✓ "+format+"\n", args...)
 }
 
 // Error prints an error message
 func Error(format string, args ...interface{}) {
-	errorColor.Printf("✗ "+format+"\n", args...)
+	_, _ = errorColor.Printf("✗ "+format+"\n", args...)
 }
 
 // Warn prints a warning message
 func Warn(format string, args ...interface{}) {
-	warnColor.Printf("! "+format+"\n", args...)
+	_, _ = warnColor.Printf("! "+format+"\n", args...)
 }
 
 // Info prints an info message
 func Info(format string, args ...interface{}) {
-	infoColor.Printf("→ "+format+"\n", args...)
+	_, _ = infoColor.Printf("→ "+format+"\n", args...)
 }
 
 // Print prints a plain message

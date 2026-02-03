@@ -13,8 +13,14 @@ func TestConfig(t *testing.T) {
 
 	// Override config path for testing
 	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", originalHome)
+	if err := os.Setenv("HOME", tempDir); err != nil {
+		t.Fatalf("failed to set HOME: %v", err)
+	}
+	defer func() {
+		if err := os.Setenv("HOME", originalHome); err != nil {
+			t.Errorf("failed to restore HOME: %v", err)
+		}
+	}()
 
 	// Create the .config/vhost directory
 	configDir := filepath.Join(tempDir, ".config", "vhost")
@@ -164,8 +170,14 @@ func TestConfigPaths(t *testing.T) {
 
 	// Override config path for testing
 	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", originalHome)
+	if err := os.Setenv("HOME", tempDir); err != nil {
+		t.Fatalf("failed to set HOME: %v", err)
+	}
+	defer func() {
+		if err := os.Setenv("HOME", originalHome); err != nil {
+			t.Errorf("failed to restore HOME: %v", err)
+		}
+	}()
 
 	// Create the .config/vhost directory
 	configDir := filepath.Join(tempDir, ".config", "vhost")

@@ -27,7 +27,7 @@ func captureStdout(f func()) string {
 
 	f()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 	color.Output = os.Stdout
 

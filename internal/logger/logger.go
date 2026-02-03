@@ -160,7 +160,7 @@ func (l *Logger) log(level Level, format string, args ...interface{}) {
 
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(l.output, "[%s] %s %s\n", level.String(), timestamp, msg)
+	_, _ = fmt.Fprintf(l.output, "[%s] %s %s\n", level.String(), timestamp, msg)
 }
 
 // logFields writes a message with structured key-value fields.
@@ -191,7 +191,7 @@ func (l *Logger) logFields(level Level, msg string, fields map[string]interface{
 		fieldsStr = " " + strings.Join(fieldParts, " ")
 	}
 
-	fmt.Fprintf(l.output, "[%s] %s %s%s\n", level.String(), timestamp, msg, fieldsStr)
+	_, _ = fmt.Fprintf(l.output, "[%s] %s %s%s\n", level.String(), timestamp, msg, fieldsStr)
 }
 
 // Debug logs a debug message.

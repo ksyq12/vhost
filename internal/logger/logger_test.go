@@ -187,7 +187,7 @@ func TestLogFieldsSorted(t *testing.T) {
 		t.Fatalf("Missing fields in output: %s", output)
 	}
 
-	if !(alphaIdx < betaIdx && betaIdx < zebraIdx) {
+	if alphaIdx >= betaIdx || betaIdx >= zebraIdx {
 		t.Errorf("Fields not sorted alphabetically: %s", output)
 	}
 }
