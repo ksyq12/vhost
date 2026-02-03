@@ -3,7 +3,6 @@
 package integration
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,72 +15,47 @@ import (
 	"github.com/ksyq12/vhost/internal/template"
 )
 
-const (
-	sitesAvailable = "./sites-available"
-	sitesEnabled   = "./sites-enabled"
-	wwwDir         = "./www"
-)
-
-func TestMain(m *testing.M) {
-	// Setup: create test directories with error handling
-	if err := os.MkdirAll(sitesAvailable, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create sites-available directory: %v\n", err)
-		os.Exit(1)
-	}
-	if err := os.MkdirAll(sitesEnabled, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create sites-enabled directory: %v\n", err)
-		os.Exit(1)
-	}
-	if err := os.MkdirAll(wwwDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create www directory: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Run tests
-	code := m.Run()
-
-	// Cleanup: remove test files (keep directories for docker-compose volumes)
-	cleanupTestFiles()
-
-	os.Exit(code)
+// testDirs holds paths to test directories, created fresh for each test
+type testDirs struct {
+	sitesAvailable string
+	sitesEnabled   string
+	wwwDir         string
 }
 
-func cleanupTestFiles() {
-	// Clean sites-available
-	if entries, err := os.ReadDir(sitesAvailable); err == nil {
-		for _, e := range entries {
-			os.Remove(filepath.Join(sitesAvailable, e.Name()))
-		}
+// setupTestDirs creates temporary directories for testing
+func setupTestDirs(t *testing.T) *testDirs {
+	t.Helper()
+	baseDir := t.TempDir() // Automatically cleaned up after test
+
+	dirs := &testDirs{
+		sitesAvailable: filepath.Join(baseDir, "sites-available"),
+		sitesEnabled:   filepath.Join(baseDir, "sites-enabled"),
+		wwwDir:         filepath.Join(baseDir, "www"),
 	}
 
-	// Clean sites-enabled
-	if entries, err := os.ReadDir(sitesEnabled); err == nil {
-		for _, e := range entries {
-			os.Remove(filepath.Join(sitesEnabled, e.Name()))
-		}
+	if err := os.MkdirAll(dirs.sitesAvailable, 0755); err != nil {
+		t.Fatalf("Failed to create sites-available directory: %v", err)
+	}
+	if err := os.MkdirAll(dirs.sitesEnabled, 0755); err != nil {
+		t.Fatalf("Failed to create sites-enabled directory: %v", err)
+	}
+	if err := os.MkdirAll(dirs.wwwDir, 0755); err != nil {
+		t.Fatalf("Failed to create www directory: %v", err)
 	}
 
-	// Clean www directory contents
-	if entries, err := os.ReadDir(wwwDir); err == nil {
-		for _, e := range entries {
-			os.RemoveAll(filepath.Join(wwwDir, e.Name()))
-		}
-	}
+	return dirs
 }
 
 func TestNginxDriverIntegration(t *testing.T) {
-	// Use paths relative to test/integration directory
-	absAvailable, _ := filepath.Abs(sitesAvailable)
-	absEnabled, _ := filepath.Abs(sitesEnabled)
-	absWww, _ := filepath.Abs(wwwDir)
+	dirs := setupTestDirs(t)
 
-	drv := driver.NewNginxWithPaths(absAvailable, absEnabled)
+	drv := driver.NewNginxWithPaths(dirs.sitesAvailable, dirs.sitesEnabled)
 
 	t.Run("Add static vhost", func(t *testing.T) {
 		vhost := &config.VHost{
 			Domain:    "test.local",
 			Type:      config.TypeStatic,
-			Root:      filepath.Join(absWww, "test.local"),
+			Root:      filepath.Join(dirs.wwwDir, "test.local"),
 			SSL:       false,
 			Enabled:   true,
 			CreatedAt: time.Now(),
@@ -99,7 +73,7 @@ func TestNginxDriverIntegration(t *testing.T) {
 		}
 
 		// Verify config file exists
-		configPath := filepath.Join(absAvailable, "test.local")
+		configPath := filepath.Join(dirs.sitesAvailable, "test.local")
 		if _, err := os.Stat(configPath); os.IsNotExist(err) {
 			t.Error("Config file was not created")
 		}
@@ -124,7 +98,7 @@ func TestNginxDriverIntegration(t *testing.T) {
 		}
 
 		// Verify symlink exists
-		symlinkPath := filepath.Join(absEnabled, "test.local")
+		symlinkPath := filepath.Join(dirs.sitesEnabled, "test.local")
 		info, err := os.Lstat(symlinkPath)
 		if err != nil {
 			t.Fatalf("Failed to stat symlink: %v", err)
@@ -168,7 +142,7 @@ func TestNginxDriverIntegration(t *testing.T) {
 			t.Fatalf("Failed to remove vhost: %v", err)
 		}
 
-		configPath := filepath.Join(absAvailable, "test.local")
+		configPath := filepath.Join(dirs.sitesAvailable, "test.local")
 		if _, err := os.Stat(configPath); !os.IsNotExist(err) {
 			t.Error("Config file should have been removed")
 		}
@@ -180,17 +154,15 @@ func TestNginxConfigValidation(t *testing.T) {
 		t.Skip("Nginx is not available")
 	}
 
-	absAvailable, _ := filepath.Abs(sitesAvailable)
-	absEnabled, _ := filepath.Abs(sitesEnabled)
-	absWww, _ := filepath.Abs(wwwDir)
+	dirs := setupTestDirs(t)
 
-	drv := driver.NewNginxWithPaths(absAvailable, absEnabled)
+	drv := driver.NewNginxWithPaths(dirs.sitesAvailable, dirs.sitesEnabled)
 
 	t.Run("Valid config syntax", func(t *testing.T) {
 		vhost := &config.VHost{
 			Domain:    "valid.local",
 			Type:      config.TypeStatic,
-			Root:      filepath.Join(absWww, "valid.local"),
+			Root:      filepath.Join(dirs.wwwDir, "valid.local"),
 			SSL:       false,
 			Enabled:   true,
 			CreatedAt: time.Now(),
@@ -223,10 +195,9 @@ func TestNginxConfigValidation(t *testing.T) {
 }
 
 func TestProxyVhost(t *testing.T) {
-	absAvailable, _ := filepath.Abs(sitesAvailable)
-	absEnabled, _ := filepath.Abs(sitesEnabled)
+	dirs := setupTestDirs(t)
 
-	drv := driver.NewNginxWithPaths(absAvailable, absEnabled)
+	drv := driver.NewNginxWithPaths(dirs.sitesAvailable, dirs.sitesEnabled)
 
 	t.Run("Add proxy vhost", func(t *testing.T) {
 		vhost := &config.VHost{
@@ -248,7 +219,7 @@ func TestProxyVhost(t *testing.T) {
 		}
 
 		// Read and verify config contains proxy settings
-		configPath := filepath.Join(absAvailable, "api.local")
+		configPath := filepath.Join(dirs.sitesAvailable, "api.local")
 		data, err := os.ReadFile(configPath)
 		if err != nil {
 			t.Fatalf("Failed to read config: %v", err)
@@ -268,17 +239,15 @@ func TestProxyVhost(t *testing.T) {
 }
 
 func TestPHPVhost(t *testing.T) {
-	absAvailable, _ := filepath.Abs(sitesAvailable)
-	absEnabled, _ := filepath.Abs(sitesEnabled)
-	absWww, _ := filepath.Abs(wwwDir)
+	dirs := setupTestDirs(t)
 
-	drv := driver.NewNginxWithPaths(absAvailable, absEnabled)
+	drv := driver.NewNginxWithPaths(dirs.sitesAvailable, dirs.sitesEnabled)
 
 	t.Run("Add PHP vhost", func(t *testing.T) {
 		vhost := &config.VHost{
 			Domain:     "php.local",
 			Type:       config.TypePHP,
-			Root:       filepath.Join(absWww, "php.local"),
+			Root:       filepath.Join(dirs.wwwDir, "php.local"),
 			PHPVersion: "8.2",
 			SSL:        false,
 			Enabled:    true,
@@ -295,7 +264,7 @@ func TestPHPVhost(t *testing.T) {
 		}
 
 		// Read and verify config contains PHP-FPM settings
-		configPath := filepath.Join(absAvailable, "php.local")
+		configPath := filepath.Join(dirs.sitesAvailable, "php.local")
 		data, err := os.ReadFile(configPath)
 		if err != nil {
 			t.Fatalf("Failed to read config: %v", err)
@@ -318,17 +287,15 @@ func TestPHPVhost(t *testing.T) {
 }
 
 func TestLaravelVhost(t *testing.T) {
-	absAvailable, _ := filepath.Abs(sitesAvailable)
-	absEnabled, _ := filepath.Abs(sitesEnabled)
-	absWww, _ := filepath.Abs(wwwDir)
+	dirs := setupTestDirs(t)
 
-	drv := driver.NewNginxWithPaths(absAvailable, absEnabled)
+	drv := driver.NewNginxWithPaths(dirs.sitesAvailable, dirs.sitesEnabled)
 
 	t.Run("Add Laravel vhost", func(t *testing.T) {
 		vhost := &config.VHost{
 			Domain:     "laravel.local",
 			Type:       config.TypeLaravel,
-			Root:       filepath.Join(absWww, "laravel.local/public"),
+			Root:       filepath.Join(dirs.wwwDir, "laravel.local/public"),
 			PHPVersion: "8.2",
 			SSL:        false,
 			Enabled:    true,
@@ -345,7 +312,7 @@ func TestLaravelVhost(t *testing.T) {
 		}
 
 		// Read and verify config contains Laravel-specific settings
-		configPath := filepath.Join(absAvailable, "laravel.local")
+		configPath := filepath.Join(dirs.sitesAvailable, "laravel.local")
 		data, err := os.ReadFile(configPath)
 		if err != nil {
 			t.Fatalf("Failed to read config: %v", err)
@@ -363,10 +330,9 @@ func TestLaravelVhost(t *testing.T) {
 }
 
 func TestErrorCases(t *testing.T) {
-	absAvailable, _ := filepath.Abs(sitesAvailable)
-	absEnabled, _ := filepath.Abs(sitesEnabled)
+	dirs := setupTestDirs(t)
 
-	drv := driver.NewNginxWithPaths(absAvailable, absEnabled)
+	drv := driver.NewNginxWithPaths(dirs.sitesAvailable, dirs.sitesEnabled)
 
 	t.Run("Enable non-existent vhost", func(t *testing.T) {
 		err := drv.Enable("nonexistent.local")
