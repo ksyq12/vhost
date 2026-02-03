@@ -14,24 +14,23 @@ import (
 	"github.com/ksyq12/vhost/internal/config"
 	"github.com/ksyq12/vhost/internal/driver"
 	"github.com/ksyq12/vhost/internal/output"
-	"github.com/ksyq12/vhost/internal/platform"
 )
 
 // loadConfigAndDriver loads config and returns the appropriate driver
 func loadConfigAndDriver() (*config.Config, driver.Driver, error) {
-	cfg, err := config.Load()
+	cfg, err := deps.ConfigLoader.Load()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
 	// Resolve paths: config override > platform detection
-	paths, err := resolvePaths(cfg)
+	paths, err := resolvePathsWithDetector(cfg, deps.PlatformDetector)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Create driver with resolved paths
-	drv, err := createDriverWithPaths(cfg.Driver, paths)
+	// Create driver with factory
+	drv, err := deps.DriverFactory.Create(cfg.Driver, paths)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -42,6 +41,12 @@ func loadConfigAndDriver() (*config.Config, driver.Driver, error) {
 // resolvePaths determines the paths to use for the driver.
 // Priority: config override > platform auto-detection
 func resolvePaths(cfg *config.Config) (driver.Paths, error) {
+	return resolvePathsWithDetector(cfg, deps.PlatformDetector)
+}
+
+// resolvePathsWithDetector determines paths using an injectable detector.
+// Priority: config override > platform auto-detection
+func resolvePathsWithDetector(cfg *config.Config, detector PlatformDetector) (driver.Paths, error) {
 	// Priority 1: Use config paths if provided
 	if cfg.Paths != nil && cfg.Paths.Available != "" && cfg.Paths.Enabled != "" {
 		// Validate that paths are absolute
@@ -64,7 +69,7 @@ func resolvePaths(cfg *config.Config) (driver.Paths, error) {
 	}
 
 	// Priority 2: Auto-detect platform paths
-	platformPaths, err := platform.DetectPaths()
+	platformPaths, err := detector.DetectPaths()
 	if err != nil {
 		return driver.Paths{}, fmt.Errorf("failed to detect platform paths: %w\n\n"+
 			"To manually configure paths, add to ~/.config/vhost/config.yaml:\n"+
@@ -124,7 +129,7 @@ func testAndReload(drv driver.Driver, reload bool, rollback func() error) error 
 
 // saveConfig saves the config and returns error instead of just warning
 func saveConfig(cfg *config.Config) error {
-	if err := cfg.Save(); err != nil {
+	if err := deps.ConfigLoader.Save(cfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 	return nil
@@ -437,8 +442,5 @@ func isValidDomainFormat(domain string) bool {
 // requireRoot checks if the current process is running as root (UID 0).
 // Returns an error if not running as root, enforcing security policy.
 func requireRoot() error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("this operation requires root privileges. Please run with sudo")
-	}
-	return nil
+	return deps.RootChecker.RequireRoot()
 }

@@ -1,9 +1,7 @@
 package cli
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/ksyq12/vhost/internal/output"
@@ -56,8 +54,7 @@ func runRemove(cmd *cobra.Command, args []string) error {
 	// Confirm removal if not forced
 	if !forceRemove {
 		output.Print("Are you sure you want to remove vhost '%s'? [y/N]: ", domain)
-		reader := bufio.NewReader(os.Stdin)
-		answer, _ := reader.ReadString('\n')
+		answer, _ := deps.StdinReader.ReadString('\n')
 		answer = strings.TrimSpace(strings.ToLower(answer))
 		if answer != "y" && answer != "yes" {
 			output.Info("Removal cancelled")
