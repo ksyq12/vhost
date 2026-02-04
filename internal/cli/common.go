@@ -444,3 +444,49 @@ func isValidDomainFormat(domain string) bool {
 func requireRoot() error {
 	return deps.RootChecker.RequireRoot()
 }
+
+// DryRunOperation represents a single operation that would be performed
+type DryRunOperation struct {
+	Action  string `json:"action"`
+	Target  string `json:"target"`
+	Details string `json:"details,omitempty"`
+}
+
+// DryRunResult contains all operations that would be performed in dry-run mode
+type DryRunResult struct {
+	DryRun        bool              `json:"dry_run"`
+	Success       bool              `json:"success"`
+	Domain        string            `json:"domain"`
+	Operations    []DryRunOperation `json:"operations"`
+	ConfigPreview string            `json:"config_preview,omitempty"`
+}
+
+// outputDryRun outputs dry-run operation details
+func outputDryRun(result *DryRunResult) error {
+	result.DryRun = true
+	result.Success = true
+
+	if jsonOutput {
+		return output.JSON(result)
+	}
+
+	// Human-readable output with warning style
+	output.Warn("Dry-run mode: No changes will be made\n")
+
+	for _, op := range result.Operations {
+		if op.Details != "" {
+			output.Warn("[DRY-RUN] Would %s: %s (%s)", op.Action, op.Target, op.Details)
+		} else {
+			output.Warn("[DRY-RUN] Would %s: %s", op.Action, op.Target)
+		}
+	}
+
+	if result.ConfigPreview != "" {
+		output.Print("\n--- Configuration Preview ---")
+		output.Print(result.ConfigPreview)
+		output.Print("--- End Preview ---\n")
+	}
+
+	output.Success("[DRY-RUN] VHost %s would be processed successfully", result.Domain)
+	return nil
+}

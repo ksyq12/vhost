@@ -10,6 +10,7 @@ import (
 var (
 	jsonOutput bool
 	verbose    bool
+	dryRun     bool
 )
 
 // rootCmd represents the base command
@@ -42,4 +43,5 @@ func SetVersion(v string) {
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging for debugging")
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Show what would be done without making changes")
 }

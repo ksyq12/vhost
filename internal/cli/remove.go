@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/ksyq12/vhost/internal/output"
@@ -40,14 +41,19 @@ func runRemove(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Require root for system operations
-	if err := requireRoot(); err != nil {
-		return err
-	}
-
 	// Load config and driver
 	cfg, drv, err := loadConfigAndDriver()
 	if err != nil {
+		return err
+	}
+
+	// Dry-run mode: show what would be done without making changes
+	if dryRun {
+		return outputRemoveDryRun(domain, drv.Name(), drv.Paths())
+	}
+
+	// Require root for system operations
+	if err := requireRoot(); err != nil {
 		return err
 	}
 
@@ -88,4 +94,52 @@ func runRemove(cmd *cobra.Command, args []string) error {
 		},
 		"VHost %s removed", domain,
 	)
+}
+
+// outputRemoveDryRun outputs what remove command would do in dry-run mode
+func outputRemoveDryRun(domain string, drvName string, drvPaths struct{ Available, Enabled string }) error {
+	// Determine config file name (apache uses .conf extension)
+	configFileName := domain
+	if drvName == "apache" {
+		configFileName = domain + ".conf"
+	}
+
+	configPath := filepath.Join(drvPaths.Available, configFileName)
+	enabledPath := filepath.Join(drvPaths.Enabled, configFileName)
+
+	operations := []DryRunOperation{
+		{
+			Action:  "remove_symlink",
+			Target:  enabledPath,
+			Details: "Disable vhost",
+		},
+		{
+			Action:  "delete_file",
+			Target:  configPath,
+			Details: "Remove configuration file",
+		},
+	}
+
+	// Add test and reload operations if not --no-reload
+	if !noReload {
+		operations = append(operations,
+			DryRunOperation{
+				Action:  "test_config",
+				Target:  drvName,
+				Details: "Validate configuration syntax",
+			},
+			DryRunOperation{
+				Action:  "reload_server",
+				Target:  drvName,
+				Details: "Apply configuration changes",
+			},
+		)
+	}
+
+	result := &DryRunResult{
+		Domain:     domain,
+		Operations: operations,
+	}
+
+	return outputDryRun(result)
 }
