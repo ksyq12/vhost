@@ -227,3 +227,81 @@ func TestRunEnable(t *testing.T) {
 		})
 	}
 }
+
+func TestRunEnableDryRun(t *testing.T) {
+	tests := []struct {
+		name      string
+		domain    string
+		setupDeps func(*testing.T, *driver.MockDriver) (*Dependencies, *config.Config)
+		validate  func(*testing.T, *config.Config, *driver.MockDriver)
+	}{
+		{
+			name:   "dry-run enable shows operations without changes",
+			domain: "dryrun-enable.com",
+			setupDeps: func(t *testing.T, mockDrv *driver.MockDriver) (*Dependencies, *config.Config) {
+				cfg := config.New()
+				cfg.VHosts["dryrun-enable.com"] = &config.VHost{
+					Domain:  "dryrun-enable.com",
+					Type:    "static",
+					Enabled: false,
+				}
+				return NewMockDeps().
+					WithConfig(cfg).
+					WithDriver(mockDrv).
+					WithRootAccess(true).
+					Build(), cfg
+			},
+			validate: func(t *testing.T, cfg *config.Config, mockDrv *driver.MockDriver) {
+				// Verify NO driver operations were called
+				if len(mockDrv.EnableCalls) != 0 {
+					t.Errorf("expected 0 Enable calls in dry-run, got %d", len(mockDrv.EnableCalls))
+				}
+				if mockDrv.TestCalls != 0 {
+					t.Errorf("expected 0 Test calls in dry-run, got %d", mockDrv.TestCalls)
+				}
+				if mockDrv.ReloadCalls != 0 {
+					t.Errorf("expected 0 Reload calls in dry-run, got %d", mockDrv.ReloadCalls)
+				}
+				// Verify vhost.Enabled was NOT changed
+				vhost := cfg.VHosts["dryrun-enable.com"]
+				if vhost != nil && vhost.Enabled {
+					t.Error("vhost.Enabled should NOT be changed in dry-run mode")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup temp directories
+			tempDir := t.TempDir()
+			availableDir := filepath.Join(tempDir, "sites-available")
+			enabledDir := filepath.Join(tempDir, "sites-enabled")
+
+			// Create mock driver
+			mockDrv := driver.NewMockDriver("nginx", availableDir, enabledDir)
+
+			// Setup flags
+			noReload = false
+			dryRun = true
+			defer func() { dryRun = false }()
+
+			// Setup and inject dependencies
+			oldDeps := deps
+			mockDepsObj, cfg := tt.setupDeps(t, mockDrv)
+			deps = mockDepsObj
+			defer func() { deps = oldDeps }()
+
+			// Execute
+			err := runEnable(nil, []string{tt.domain})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Validate
+			if tt.validate != nil {
+				tt.validate(t, cfg, mockDrv)
+			}
+		})
+	}
+}

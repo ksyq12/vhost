@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/ksyq12/vhost/internal/output"
 	"github.com/spf13/cobra"
@@ -32,14 +33,19 @@ func runDisable(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Require root for system operations
-	if err := requireRoot(); err != nil {
-		return err
-	}
-
 	// Load config and driver
 	cfg, drv, err := loadConfigAndDriver()
 	if err != nil {
+		return err
+	}
+
+	// Dry-run mode: show what would be done without making changes
+	if dryRun {
+		return outputDisableDryRun(domain, drv.Name(), drv.Paths())
+	}
+
+	// Require root for system operations
+	if err := requireRoot(); err != nil {
 		return err
 	}
 
@@ -71,4 +77,46 @@ func runDisable(cmd *cobra.Command, args []string) error {
 		},
 		"VHost %s disabled", domain,
 	)
+}
+
+// outputDisableDryRun outputs what disable command would do in dry-run mode
+func outputDisableDryRun(domain string, drvName string, drvPaths struct{ Available, Enabled string }) error {
+	// Determine config file name (apache uses .conf extension)
+	configFileName := domain
+	if drvName == "apache" {
+		configFileName = domain + ".conf"
+	}
+
+	enabledPath := filepath.Join(drvPaths.Enabled, configFileName)
+
+	operations := []DryRunOperation{
+		{
+			Action:  "remove_symlink",
+			Target:  enabledPath,
+			Details: "Disable vhost by removing symlink",
+		},
+	}
+
+	// Add test and reload operations if not --no-reload
+	if !noReload {
+		operations = append(operations,
+			DryRunOperation{
+				Action:  "test_config",
+				Target:  drvName,
+				Details: "Validate configuration syntax",
+			},
+			DryRunOperation{
+				Action:  "reload_server",
+				Target:  drvName,
+				Details: "Apply configuration changes",
+			},
+		)
+	}
+
+	result := &DryRunResult{
+		Domain:     domain,
+		Operations: operations,
+	}
+
+	return outputDryRun(result)
 }

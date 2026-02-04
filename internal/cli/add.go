@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -98,6 +99,12 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to render template: %w", err)
 	}
 
+	// Dry-run mode: show what would be done without making changes
+	if dryRun {
+		drvPaths := drv.Paths()
+		return outputAddDryRun(domain, drv.Name(), struct{ Available, Enabled string }{drvPaths.Available, drvPaths.Enabled}, vhost, configContent)
+	}
+
 	// Require root for system operations
 	if err := requireRoot(); err != nil {
 		return err
@@ -168,4 +175,64 @@ func validateAddOptions() error {
 		}
 	}
 	return nil
+}
+
+// outputAddDryRun outputs what add command would do in dry-run mode
+func outputAddDryRun(domain string, drvName string, drvPaths struct{ Available, Enabled string }, vhost *config.VHost, configContent string) error {
+	paths := drvPaths
+
+	// Determine config file name (apache uses .conf extension)
+	configFileName := domain
+	if drvName == "apache" {
+		configFileName = domain + ".conf"
+	}
+
+	configPath := filepath.Join(paths.Available, configFileName)
+	enabledPath := filepath.Join(paths.Enabled, configFileName)
+
+	operations := []DryRunOperation{
+		{
+			Action:  "create_file",
+			Target:  configPath,
+			Details: fmt.Sprintf("VHost configuration for %s", domain),
+		},
+		{
+			Action:  "create_symlink",
+			Target:  enabledPath,
+			Details: fmt.Sprintf("Link to %s", configPath),
+		},
+	}
+
+	// Add document root creation if specified
+	if vhost.Root != "" {
+		operations = append(operations, DryRunOperation{
+			Action:  "create_directory",
+			Target:  vhost.Root,
+			Details: "Document root directory",
+		})
+	}
+
+	// Add test and reload operations if not --no-reload
+	if !noReload {
+		operations = append(operations,
+			DryRunOperation{
+				Action:  "test_config",
+				Target:  drvName,
+				Details: "Validate configuration syntax",
+			},
+			DryRunOperation{
+				Action:  "reload_server",
+				Target:  drvName,
+				Details: "Apply configuration changes",
+			},
+		)
+	}
+
+	result := &DryRunResult{
+		Domain:        domain,
+		Operations:    operations,
+		ConfigPreview: configContent,
+	}
+
+	return outputDryRun(result)
 }

@@ -275,3 +275,68 @@ func TestCreateDriverWithPaths(t *testing.T) {
 		})
 	}
 }
+
+func TestDryRunOperation(t *testing.T) {
+	t.Run("create operation", func(t *testing.T) {
+		op := DryRunOperation{
+			Action:  "create_file",
+			Target:  "/etc/nginx/sites-available/example.com",
+			Details: "Create configuration file",
+		}
+
+		if op.Action != "create_file" {
+			t.Errorf("expected action create_file, got %s", op.Action)
+		}
+		if op.Target != "/etc/nginx/sites-available/example.com" {
+			t.Errorf("unexpected target: %s", op.Target)
+		}
+	})
+
+	t.Run("symlink operation", func(t *testing.T) {
+		op := DryRunOperation{
+			Action:  "create_symlink",
+			Target:  "/etc/nginx/sites-enabled/example.com",
+			Details: "Link to sites-available/example.com",
+		}
+
+		if op.Action != "create_symlink" {
+			t.Errorf("expected action create_symlink, got %s", op.Action)
+		}
+	})
+}
+
+func TestDryRunResult(t *testing.T) {
+	t.Run("result with operations and preview", func(t *testing.T) {
+		result := &DryRunResult{
+			Domain: "example.com",
+			Operations: []DryRunOperation{
+				{Action: "create_file", Target: "/path/to/config"},
+				{Action: "create_symlink", Target: "/path/to/enabled"},
+			},
+			ConfigPreview: "server { listen 80; }",
+		}
+
+		if result.Domain != "example.com" {
+			t.Errorf("expected domain example.com, got %s", result.Domain)
+		}
+		if len(result.Operations) != 2 {
+			t.Errorf("expected 2 operations, got %d", len(result.Operations))
+		}
+		if result.ConfigPreview == "" {
+			t.Error("expected config preview to be set")
+		}
+	})
+
+	t.Run("result without preview", func(t *testing.T) {
+		result := &DryRunResult{
+			Domain: "example.com",
+			Operations: []DryRunOperation{
+				{Action: "remove_symlink", Target: "/path/to/enabled"},
+			},
+		}
+
+		if result.ConfigPreview != "" {
+			t.Errorf("expected empty config preview, got %s", result.ConfigPreview)
+		}
+	})
+}

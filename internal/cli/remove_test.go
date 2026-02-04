@@ -288,3 +288,80 @@ func TestRunRemove(t *testing.T) {
 		})
 	}
 }
+
+func TestRunRemoveDryRun(t *testing.T) {
+	tests := []struct {
+		name      string
+		domain    string
+		setupDeps func(*testing.T, *driver.MockDriver) (*Dependencies, *config.Config)
+		validate  func(*testing.T, *config.Config, *driver.MockDriver)
+	}{
+		{
+			name:   "dry-run remove shows operations without changes",
+			domain: "dryrun-remove.com",
+			setupDeps: func(t *testing.T, mockDrv *driver.MockDriver) (*Dependencies, *config.Config) {
+				cfg := config.New()
+				cfg.VHosts["dryrun-remove.com"] = &config.VHost{
+					Domain: "dryrun-remove.com",
+					Type:   "static",
+				}
+				return NewMockDeps().
+					WithConfig(cfg).
+					WithDriver(mockDrv).
+					WithRootAccess(true).
+					Build(), cfg
+			},
+			validate: func(t *testing.T, cfg *config.Config, mockDrv *driver.MockDriver) {
+				// Verify NO driver operations were called
+				if len(mockDrv.RemoveCalls) != 0 {
+					t.Errorf("expected 0 Remove calls in dry-run, got %d", len(mockDrv.RemoveCalls))
+				}
+				if mockDrv.TestCalls != 0 {
+					t.Errorf("expected 0 Test calls in dry-run, got %d", mockDrv.TestCalls)
+				}
+				if mockDrv.ReloadCalls != 0 {
+					t.Errorf("expected 0 Reload calls in dry-run, got %d", mockDrv.ReloadCalls)
+				}
+				// Verify vhost was NOT removed from config
+				if _, exists := cfg.VHosts["dryrun-remove.com"]; !exists {
+					t.Error("vhost should NOT be removed from config in dry-run mode")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup temp directories
+			tempDir := t.TempDir()
+			availableDir := filepath.Join(tempDir, "sites-available")
+			enabledDir := filepath.Join(tempDir, "sites-enabled")
+
+			// Create mock driver
+			mockDrv := driver.NewMockDriver("nginx", availableDir, enabledDir)
+
+			// Setup flags
+			forceRemove = true
+			noReload = false
+			dryRun = true
+			defer func() { dryRun = false }()
+
+			// Setup and inject dependencies
+			oldDeps := deps
+			mockDepsObj, cfg := tt.setupDeps(t, mockDrv)
+			deps = mockDepsObj
+			defer func() { deps = oldDeps }()
+
+			// Execute
+			err := runRemove(nil, []string{tt.domain})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Validate
+			if tt.validate != nil {
+				tt.validate(t, cfg, mockDrv)
+			}
+		})
+	}
+}

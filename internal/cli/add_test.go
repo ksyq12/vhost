@@ -463,6 +463,146 @@ func TestRunAdd(t *testing.T) {
 	}
 }
 
+func TestRunAddDryRun(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		setupFlags func()
+		setupDeps  func(*testing.T, *driver.MockDriver) *Dependencies
+		validate   func(*testing.T, *config.Config, *driver.MockDriver)
+	}{
+		{
+			name: "dry-run add static vhost shows operations without changes",
+			args: []string{"dryrun.example.com"},
+			setupFlags: func() {
+				vhostType = "static"
+				vhostRoot = "/var/www/html"
+				proxyPass = ""
+				phpVersion = ""
+				withSSL = false
+				noReload = false
+				dryRun = true
+			},
+			setupDeps: func(t *testing.T, mockDrv *driver.MockDriver) *Dependencies {
+				cfg := config.New()
+				return NewMockDeps().
+					WithConfig(cfg).
+					WithDriver(mockDrv).
+					WithRootAccess(true).
+					Build()
+			},
+			validate: func(t *testing.T, cfg *config.Config, mockDrv *driver.MockDriver) {
+				// Verify NO driver operations were called
+				if len(mockDrv.AddCalls) != 0 {
+					t.Errorf("expected 0 Add calls in dry-run, got %d", len(mockDrv.AddCalls))
+				}
+				if len(mockDrv.EnableCalls) != 0 {
+					t.Errorf("expected 0 Enable calls in dry-run, got %d", len(mockDrv.EnableCalls))
+				}
+				if mockDrv.TestCalls != 0 {
+					t.Errorf("expected 0 Test calls in dry-run, got %d", mockDrv.TestCalls)
+				}
+				if mockDrv.ReloadCalls != 0 {
+					t.Errorf("expected 0 Reload calls in dry-run, got %d", mockDrv.ReloadCalls)
+				}
+				// Verify vhost was NOT added to config
+				if _, exists := cfg.VHosts["dryrun.example.com"]; exists {
+					t.Error("vhost should not be added to config in dry-run mode")
+				}
+			},
+		},
+		{
+			name: "dry-run add with no-reload flag",
+			args: []string{"noreload-dryrun.com"},
+			setupFlags: func() {
+				vhostType = "static"
+				vhostRoot = "/var/www/noreload"
+				proxyPass = ""
+				phpVersion = ""
+				withSSL = false
+				noReload = true
+				dryRun = true
+			},
+			setupDeps: func(t *testing.T, mockDrv *driver.MockDriver) *Dependencies {
+				cfg := config.New()
+				return NewMockDeps().
+					WithConfig(cfg).
+					WithDriver(mockDrv).
+					WithRootAccess(true).
+					Build()
+			},
+			validate: func(t *testing.T, cfg *config.Config, mockDrv *driver.MockDriver) {
+				// No operations should occur
+				if len(mockDrv.AddCalls) != 0 {
+					t.Errorf("expected 0 Add calls, got %d", len(mockDrv.AddCalls))
+				}
+			},
+		},
+		{
+			name: "dry-run with invalid domain still fails validation",
+			args: []string{"invalid domain.com"},
+			setupFlags: func() {
+				vhostType = "static"
+				vhostRoot = "/var/www/invalid"
+				dryRun = true
+			},
+			setupDeps: func(t *testing.T, mockDrv *driver.MockDriver) *Dependencies {
+				cfg := config.New()
+				return NewMockDeps().
+					WithConfig(cfg).
+					WithDriver(mockDrv).
+					WithRootAccess(true).
+					Build()
+			},
+			validate: nil, // Error case, will check in test
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup temp directories
+			tempDir := t.TempDir()
+			availableDir := filepath.Join(tempDir, "sites-available")
+			enabledDir := filepath.Join(tempDir, "sites-enabled")
+
+			// Create mock driver
+			mockDrv := driver.NewMockDriver("nginx", availableDir, enabledDir)
+
+			// Setup flags
+			tt.setupFlags()
+			// Always reset dryRun after test
+			defer func() { dryRun = false }()
+
+			// Setup and inject dependencies
+			oldDeps := deps
+			mockDepsObj := tt.setupDeps(t, mockDrv)
+			deps = mockDepsObj
+			defer func() { deps = oldDeps }()
+
+			// Execute
+			err := runAdd(nil, tt.args)
+
+			// For invalid domain test
+			if tt.name == "dry-run with invalid domain still fails validation" {
+				if err == nil {
+					t.Error("expected validation error for invalid domain")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Validate
+			if tt.validate != nil {
+				cfg, _ := mockDepsObj.ConfigLoader.Load()
+				tt.validate(t, cfg, mockDrv)
+			}
+		})
+	}
+}
+
 func TestValidateAddOptions(t *testing.T) {
 	tests := []struct {
 		name        string
